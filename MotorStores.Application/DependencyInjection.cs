@@ -1,19 +1,20 @@
+using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
+
 namespace MotorStores.Application;
 
-/// <summary>
-/// Dependency Injection configuration for Application layer
-/// </summary>
 public static class DependencyInjection
 {
-    // TODO: Add Microsoft.Extensions.DependencyInjection.Abstractions package
-    // TODO: Add MediatR
-    // TODO: Add AutoMapper
-    // TODO: Add FluentValidation
-    
-    // Placeholder method - will be implemented when packages are added
-    public static void AddApplicationServices()
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-        // Implementation will be added when MediatR and other packages are installed
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        
+        services.AddAutoMapper(Assembly.GetExecutingAssembly());
+        
+        // TODO: Add FluentValidation when validation is implemented
+        // services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+        
+        return services;
     }
 }
 

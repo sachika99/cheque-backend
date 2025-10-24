@@ -1,8 +1,5 @@
 namespace MotorStores.Domain.Common;
-
-/// <summary>
-/// Base entity with audit fields
-/// </summary>
+ 
 public abstract class AuditableEntity : BaseEntity
 {
     public DateTime CreatedAt { get; set; }
