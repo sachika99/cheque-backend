@@ -4,7 +4,7 @@ namespace MotorStores.Application.DTOs;
 
 public record CreateVendorDto
 {
-    public string VendorCode { get; init; } = string.Empty;
+    public string? VendorCode { get; init; }  
     public string VendorName { get; init; } = string.Empty;
     public string? VendorAddress { get; init; }
     public string? VendorPhoneNo { get; init; }

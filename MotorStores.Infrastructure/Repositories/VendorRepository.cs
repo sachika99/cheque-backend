@@ -45,4 +45,11 @@ public class VendorRepository : Repository<Vendor>, IVendorRepository
 
         return await query.AnyAsync(cancellationToken);
     }
+
+    public async Task<Vendor?> GetLastVendorAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .OrderByDescending(v => v.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

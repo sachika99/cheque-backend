@@ -17,15 +17,23 @@ public class CreateVendorCommandHandler : IRequestHandler<CreateVendorCommand, V
 
     public async Task<VendorDto> Handle(CreateVendorCommand request, CancellationToken cancellationToken)
     {
-        var existingVendor = await _vendorRepository.GetByVendorCodeAsync(request.Vendor.VendorCode, cancellationToken);
+        
+        var vendorCode = request.Vendor.VendorCode;
+        if (string.IsNullOrWhiteSpace(vendorCode))
+        {
+             
+            vendorCode = await GenerateVendorCodeAsync(cancellationToken);
+        }
+
+        var existingVendor = await _vendorRepository.GetByVendorCodeAsync(vendorCode, cancellationToken);
         if (existingVendor != null)
         {
-            throw new InvalidOperationException($"Vendor with code '{request.Vendor.VendorCode}' already exists.");
+            throw new InvalidOperationException($"Vendor with code '{vendorCode}' already exists.");
         }
 
         var vendor = new Vendor
         {
-            VendorCode = request.Vendor.VendorCode,
+            VendorCode = vendorCode,
             VendorName = request.Vendor.VendorName,
             VendorAddress = request.Vendor.VendorAddress,
             VendorPhoneNo = request.Vendor.VendorPhoneNo,
@@ -41,6 +49,31 @@ public class CreateVendorCommandHandler : IRequestHandler<CreateVendorCommand, V
 
         var createdVendor = await _vendorRepository.AddAsync(vendor, cancellationToken);
         return VendorMapper.ToDto(createdVendor);
+    }
+
+    private async Task<string> GenerateVendorCodeAsync(CancellationToken cancellationToken)
+    { 
+        var lastVendor = await _vendorRepository.GetLastVendorAsync(cancellationToken);
+        
+        if (lastVendor == null || string.IsNullOrEmpty(lastVendor.VendorCode))
+        {
+            return "VENDOR001";
+        }
+  
+        var lastCode = lastVendor.VendorCode;
+        if (lastCode.StartsWith("VENDOR", StringComparison.OrdinalIgnoreCase))
+        {
+            var numberPart = lastCode.Substring(6);  
+            if (int.TryParse(numberPart, out int lastNumber))
+            {
+                var nextNumber = lastNumber + 1;
+                return $"VENDOR{nextNumber:D3}";  
+            }
+        }
+ 
+        var allVendors = await _vendorRepository.GetAllAsync(cancellationToken);
+        var sequentialNextNumber = allVendors.Count() + 1;
+        return $"VENDOR{sequentialNextNumber:D3}";
     }
 }
 

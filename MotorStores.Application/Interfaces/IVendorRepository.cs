@@ -11,4 +11,6 @@ public interface IVendorRepository : IRepository<Vendor>
     Task<IEnumerable<Vendor>> GetActiveVendorsAsync(CancellationToken cancellationToken = default);
  
     Task<bool> VendorCodeExistsAsync(string vendorCode, int? excludeId = null, CancellationToken cancellationToken = default);
+
+    Task<Vendor?> GetLastVendorAsync(CancellationToken cancellationToken = default);
 }
