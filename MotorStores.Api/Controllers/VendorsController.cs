@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MotorStores.Application.DTOs;
 using MotorStores.Application.Features.Vendors.Commands;
@@ -9,6 +10,7 @@ namespace MotorStores.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+// [Authorize]
 public class VendorsController : ControllerBase
 {
     private readonly IMediator _mediator;

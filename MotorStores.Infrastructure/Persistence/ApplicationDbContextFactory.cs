@@ -11,7 +11,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
         
         optionsBuilder.UseSqlServer(
-            "Server=DESKTOP-57TB2HG\\SQLEXPRESS;Database=MotorStoresChequeDB;Trusted_Connection=true;MultipleActiveResultSets=true;TrustServerCertificate=true;",
+          "Server=DESKTOP-57TB2HG\\SQLEXPRESS;Database=MotorStoresChequeDB;Trusted_Connection=true;MultipleActiveResultSets=true;TrustServerCertificate=true;",
             sqlOptions => sqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(30),

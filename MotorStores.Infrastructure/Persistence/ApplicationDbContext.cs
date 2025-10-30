@@ -1,36 +1,43 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using MotorStores.Domain.Entities;
+using MotorStores.Domain.Entities;    
+using MotorStores.Infrastructure.Entities; 
+using System;
 
-namespace MotorStores.Infrastructure.Persistence;
- 
-public class ApplicationDbContext : DbContext
+namespace MotorStores.Infrastructure.Persistence
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
- 
-    public DbSet<Vendor> Vendors => Set<Vendor>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public class ApplicationDbContext : IdentityDbContext<AppUser>
     {
-        base.OnModelCreating(modelBuilder);
-         
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!optionsBuilder.IsConfigured)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
         {
-            optionsBuilder.UseSqlServer(
+        }
+
+        public DbSet<Vendor> Vendors => Set<Vendor>();
+
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        }
+
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseSqlServer(
                 "Server=DESKTOP-57TB2HG\\SQLEXPRESS;Database=MotorStoresChequeDB;Trusted_Connection=true;MultipleActiveResultSets=true;TrustServerCertificate=true;",
-                sqlOptions => sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
-                    errorNumbersToAdd: null)
-            );
+                    sqlOptions => sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null)
+                );
+            }
         }
     }
-
 }
