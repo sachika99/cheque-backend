@@ -30,10 +30,10 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register(RegisterDto dto)
     {
         var userName = await _users.Users.FirstOrDefaultAsync(u => u.UserName == dto.Username);
-        if (userName == null) return Unauthorized("Username has been used");
+        if (userName != null) return Unauthorized("Username has been used");
         
         var Email = await _users.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-        if (Email == null) return Unauthorized("Email has been used");
+        if (Email != null) return Unauthorized("Email has been used");
 
         var user = new AppUser { UserName = dto.Username, Email = dto.Email };
         var result = await _users.CreateAsync(user, dto.Password);
@@ -88,7 +88,7 @@ public class AuthController : ControllerBase
                             To continue with your request, please use the following One-Time Password (OTP):
                         </p>
                         <div style='text-align:center; margin:30px 0;'>
-                            <span style='display:inline-block; background-color:#1e88e5; color:#ffffff; font-size:24px; font-weight:bold; letter-spacing:3px; padding:12px 25px; border-radius:6px;'>
+                            <span style='display:inline-block; background-color:#ffffff; color:#1e88e5; font-size:24px; font-weight:bold; letter-spacing:3px; padding:12px 25px; border-radius:6px;'>
                                 {otp}
                             </span>
                         </div>
@@ -129,6 +129,69 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password has been reset successfully." });
     }
 
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromQuery] string email)
+    {
+        try { 
+        var Email = await _users.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (Email == null) {
+
+            var random = new Random();
+            int otp = random.Next(1000, 9999);
+
+            await _email.SendEmailAsync(
+                email,
+                "Janasiri Motor Stores – Email Verification Code",
+                $@"
+                    <div style='font-family:Segoe UI, Helvetica, Arial, sans-serif; background-color:#f4f6f8; padding:20px;'>
+                        <div style='max-width:600px; margin:auto; background:#ffffff; border-radius:8px; padding:30px; box-shadow:0 4px 10px rgba(0,0,0,0.05);'>
+                            <h2 style='color:#1e88e5; text-align:center; margin-bottom:10px;'>Janasiri Motor Stores</h2>
+                            <h4 style='color:#444; text-align:center; margin-top:0;'>Email Verification</h4>
+                            <p style='font-size:15px; color:#333; margin-top:25px;'>
+                                Dear Customer,<br><br>
+                                Thank you for choosing <strong>Janasiri Motor Stores</strong>.<br/>
+                                To verify your email address and complete your registration, please use the following verification code:
+                            </p>
+                            <div style='text-align:center; margin:30px 0;'>
+                                <span style='display:inline-block; background-color:#ffffff; color:#1e88e5; font-size:24px; font-weight:bold; letter-spacing:3px; padding:12px 25px; border-radius:6px; border:2px solid #1e88e5;'>
+                                    {otp}
+                                </span>
+                            </div>
+                            <p style='font-size:14px; color:#555;'>
+                                This code will expire in <strong>5 minutes</strong>.<br/>
+                                Please enter it on the verification page to confirm your email address.<br/>
+                                Do not share this code with anyone for security reasons.
+                            </p>
+                            <hr style='margin:30px 0; border:none; border-top:1px solid #ddd;' />
+                            <p style='font-size:12px; color:#777; text-align:center;'>
+                                © {DateTime.Now.Year} Janasiri Motor Stores<br/>
+                                Secure. Reliable. Trusted Service.
+                            </p>
+                        </div>
+                    </div>"
+            );
+
+
+            return Ok(new
+            {
+                email = email,
+                otp = otp
+            });
+
+        }
+        else { return Unauthorized("Email has been used"); }
+    }
+        catch (Exception ex)
+    {
+            // 6️⃣ Catch-all error handler
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = "An unexpected error occurred.",
+                error = ex.Message
+            });
+        }
+    }
     //[HttpPost("refresh")]
     //public async Task<IActionResult> Refresh()
     //{

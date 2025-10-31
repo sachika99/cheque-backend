@@ -31,7 +31,7 @@ namespace MotorStores.Infrastructure.Persistence
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder.UseSqlServer(
-                "Server=DESKTOP-57TB2HG\\SQLEXPRESS;Database=MotorStoresChequeDB;Trusted_Connection=true;MultipleActiveResultSets=true;TrustServerCertificate=true;",
+              "Server=DESKTOP-35S9VD6;Database=MotorStoresChequeDB;Trusted_Connection=True;Encrypt=False;MultipleActiveResultSets=True;TrustServerCertificate=True;",
                     sqlOptions => sqlOptions.EnableRetryOnFailure(
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(30),
