@@ -1,24 +1,28 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using MotorStores.Domain.Entities;
+using MotorStores.Domain.Entities;    
+using MotorStores.Infrastructure.Entities; 
+using System;
+using System.IO;
 
-namespace MotorStores.Infrastructure.Persistence;
- 
-public class ApplicationDbContext : DbContext
+namespace MotorStores.Infrastructure.Persistence
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
-    {
-    }
- 
-    public DbSet<Vendor> Vendors => Set<Vendor>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public class ApplicationDbContext : IdentityDbContext<AppUser>
     {
-        base.OnModelCreating(modelBuilder);
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
          
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-    }
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { 
@@ -46,5 +50,5 @@ public class ApplicationDbContext : DbContext
             );
         }
     }
-
+    }
 }
