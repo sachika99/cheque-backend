@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MotorStores.Infrastructure.Entities;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
+using MotorStores.Infrastructure.Helpers;
 using static System.Net.WebRequestMethods;
 
 [ApiController]
@@ -75,7 +76,7 @@ public class AuthController : ControllerBase
             var random = new Random();
             int otp = random.Next(1000, 9999);
 
-            await _email.SendEmailAsync(
+            var emailResponse = await _email.SendEmailAsync(
                 email,
                 "Janasiri Motor Stores – OTP Verification",
                 $@"
@@ -101,15 +102,20 @@ public class AuthController : ControllerBase
                             Secure. Reliable. Trusted Service.
                         </p>
                     </div>
-                </div>"
+                </div>",
+                otp
             );
 
-            return Ok(new
-            {
-                email = email,
-                newToken = resetToken,
-                otp = otp
-            });
+           if (emailResponse.status == true) {
+                string encryptedOtp = CryptoHelper.Encrypt(emailResponse.otp.ToString());
+                return Ok(new
+                    {
+                    email = email,
+                    newToken = resetToken,
+                    otp = encryptedOtp
+                });
+                }
+                else { return Unauthorized("Email send failed"); }
         }
         else return BadRequest("Please try again.");
     }
@@ -140,7 +146,7 @@ public class AuthController : ControllerBase
             var random = new Random();
             int otp = random.Next(1000, 9999);
 
-            await _email.SendEmailAsync(
+           var emailResponse = await _email.SendEmailAsync(
                 email,
                 "Janasiri Motor Stores – Email Verification Code",
                 $@"
@@ -169,22 +175,27 @@ public class AuthController : ControllerBase
                                 Secure. Reliable. Trusted Service.
                             </p>
                         </div>
-                    </div>"
+                    </div>",
+                otp
             );
+                if (emailResponse.status == true) {
+                    string encryptedOtp = CryptoHelper.Encrypt(emailResponse.otp.ToString());
+                    return Ok(new
+                    {
+                        email = email,
+                        otp = encryptedOtp
+                    });
+                }
+                else { return Unauthorized("Email send failed"); }
 
 
-            return Ok(new
-            {
-                email = email,
-                otp = otp
-            });
 
-        }
+            }
         else { return Unauthorized("Email has been used"); }
     }
         catch (Exception ex)
     {
-            // 6️⃣ Catch-all error handler
+
             return StatusCode(StatusCodes.Status500InternalServerError, new
             {
                 message = "An unexpected error occurred.",
