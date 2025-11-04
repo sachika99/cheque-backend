@@ -10,6 +10,8 @@ namespace MotorStores.Infrastructure.Services
     {
         public bool status { get; set; }
         public int otp { get; set; }
+        public string email { get; set; }
+        public string username { get; set; }
     }
 
     public class EmailService
@@ -21,7 +23,7 @@ namespace MotorStores.Infrastructure.Services
             _cfg = cfg;
         }
 
-        public async Task<EmailResult> SendEmailAsync(string to, string subject, string body, int otp)
+        public async Task<EmailResult> SendEmailAsync(string to, string subject, string body, int otp, string confirmedUserName)
         {
             var result = new EmailResult();
 
@@ -48,12 +50,16 @@ namespace MotorStores.Infrastructure.Services
 
                 result.status = true;
                 result.otp = otp;
+                result.email = to;
+                result.username = confirmedUserName;
             }
             
             catch (Exception ex)
             {
                 result.status = false;
                 result.otp = otp;
+                 result.email = to;
+                result.username = confirmedUserName;
             }
 
             return result;
