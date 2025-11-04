@@ -2,9 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MotorStores.Infrastructure.Entities;
+using MotorStores.Infrastructure.Helpers;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
-using MotorStores.Infrastructure.Helpers;
+using System.Runtime.Intrinsics.X86;
 using static System.Net.WebRequestMethods;
 
 [ApiController]
@@ -64,20 +65,39 @@ public class AuthController : ControllerBase
     
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromQuery] string email)
+        
     {
+        string confirmedEmail;
+        string confirmedUserName;
+        AppUser confirmedUser;
+
         var user = await _users.FindByEmailAsync(email);
         if (user == null)
-            return BadRequest("No user found with that email.");
+        {
+            var user1 = await _users.Users.FirstOrDefaultAsync(u => u.UserName == email);
+            if (user1 == null)
+                return Unauthorized("User cannot be found");
 
-      
-        var resetToken = await _users.GeneratePasswordResetTokenAsync(user);
+            confirmedEmail = user1.Email;
+            confirmedUser = user1;
+            confirmedUserName = user1.UserName;
+        }
+        else
+        {
+            confirmedEmail = user.Email;
+            confirmedUser = user;
+            confirmedUserName = user.UserName;
+        }
+
+
+        var resetToken = await _users.GeneratePasswordResetTokenAsync(confirmedUser);
         if (resetToken != null)
         {
             var random = new Random();
             int otp = random.Next(1000, 9999);
 
             var emailResponse = await _email.SendEmailAsync(
-                email,
+                confirmedEmail,
                 "Janasiri Motor Stores – OTP Verification",
                 $@"
                 <div style='font-family:Segoe UI, Helvetica, Arial, sans-serif; background-color:#f4f6f8; padding:20px;'>
@@ -103,16 +123,18 @@ public class AuthController : ControllerBase
                         </p>
                     </div>
                 </div>",
-                otp
+                otp,
+                confirmedUserName
             );
 
            if (emailResponse.status == true) {
                 string encryptedOtp = CryptoHelper.Encrypt(emailResponse.otp.ToString());
                 return Ok(new
                     {
-                    email = email,
+                    email = emailResponse.email,
                     newToken = resetToken,
-                    otp = encryptedOtp
+                    otp = encryptedOtp,
+                    username = emailResponse.username
                 });
                 }
                 else { return Unauthorized("Email send failed"); }
@@ -176,7 +198,8 @@ public class AuthController : ControllerBase
                             </p>
                         </div>
                     </div>",
-                otp
+                otp,
+                "Register (first-time user)"
             );
                 if (emailResponse.status == true) {
                     string encryptedOtp = CryptoHelper.Encrypt(emailResponse.otp.ToString());
