@@ -1,0 +1,124 @@
+using Microsoft.AspNetCore.Mvc;
+using MotorStores.Application.DTOs;
+using MotorStores.Application.Interfaces;
+
+namespace MotorStores.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Produces("application/json")]
+    public class ChequesController : ControllerBase
+    {
+        private readonly IChequeService _chequeService;
+
+        public ChequesController(IChequeService chequeService)
+        {
+            _chequeService = chequeService;
+        }
+
+        // Get all cheques with optional search filter
+        [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<ChequeReportDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeReportDto>>> GetAllCheques([FromQuery] string? search = null)
+        {
+            var cheques = await _chequeService.GetAllChequesAsync(search);
+            return Ok(cheques);
+        }
+
+        // Get cheques due this month
+        [HttpGet("due-this-month")]
+        [ProducesResponseType(typeof(IEnumerable<ChequeReportDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeReportDto>>> GetDueThisMonth()
+        {
+            var cheques = await _chequeService.GetDueThisMonthAsync();
+            return Ok(cheques);
+        }
+
+        // Get overdue cheques
+        [HttpGet("overdue")]
+        [ProducesResponseType(typeof(IEnumerable<ChequeReportDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeReportDto>>> GetOverdue()
+        {
+            var cheques = await _chequeService.GetOverdueChequesAsync();
+            return Ok(cheques);
+        }
+
+        // Get cleared cheques
+        [HttpGet("cleared")]
+        [ProducesResponseType(typeof(IEnumerable<ChequeReportDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeReportDto>>> GetCleared()
+        {
+            var cheques = await _chequeService.GetClearedChequesAsync();
+            return Ok(cheques);
+        }
+
+        // Create a new cheque
+        [HttpPost]
+        [ProducesResponseType(typeof(ChequeDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ChequeDto>> CreateCheque([FromBody] ChequeDto dto)
+        {
+            try
+            {
+                var cheque = await _chequeService.CreateAsync(dto);
+                return CreatedAtAction(nameof(GetAllCheques), new { id = cheque.ChequeId }, cheque);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // Update cheque status
+        [HttpPatch("{chequeId}/status")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> UpdateStatus(
+            string chequeId,
+            [FromBody] UpdateChequeStatusRequest request)
+        {
+            try
+            {
+                await _chequeService.UpdateStatusAsync(chequeId, request.NewStatus, request.User);
+                return Ok(new { message = "Status updated successfully" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // Mark cheque as verified
+        [HttpPatch("{chequeId}/verify")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> MarkAsVerified(string chequeId)
+        {
+            try
+            {
+                await _chequeService.MarkAsVerifiedAsync(chequeId);
+                return Ok(new { message = "Cheque marked as verified" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+    }
+
+    // Request model for updating cheque status
+    public class UpdateChequeStatusRequest
+    {
+        public string NewStatus { get; set; } = null!;
+        public string User { get; set; } = "System";
+    }
+}

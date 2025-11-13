@@ -16,6 +16,11 @@ namespace MotorStores.Infrastructure.Persistence
         }
 
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<Bank> Banks => Set<Bank>();
+        public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+        public DbSet<ChequeBook> ChequeBooks => Set<ChequeBook>();
+        public DbSet<Cheque> Cheques => Set<Cheque>();
+        public DbSet<ChequeHistory> ChequeHistories => Set<ChequeHistory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
