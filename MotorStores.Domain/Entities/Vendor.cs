@@ -24,9 +24,11 @@ public class Vendor : AuditableEntity
     public VendorStatus Status { get; set; } = VendorStatus.Active;
  
     public string? Notes { get; set; }
+
+    public string? ContactPerson { get; set; }
  
-    public string? ContactPerson { get; set; } 
-   
+    public ICollection<Cheque> Cheques { get; set; } = new List<Cheque>();
+
     public bool CanReceivePayments()
     {
         return Status == VendorStatus.Active &&

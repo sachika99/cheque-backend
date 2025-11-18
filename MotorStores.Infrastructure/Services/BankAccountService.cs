@@ -1,0 +1,162 @@
+using Microsoft.EntityFrameworkCore;
+using MotorStores.Application.DTOs;
+using MotorStores.Application.Interfaces;
+using MotorStores.Domain.Entities;
+using MotorStores.Domain.Enums;
+using MotorStores.Infrastructure.Persistence;
+
+namespace MotorStores.Infrastructure.Services
+{
+    public class BankAccountService : IBankAccountService
+    {
+        private readonly ApplicationDbContext _context;
+
+        public BankAccountService(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<IEnumerable<BankAccountDto>> GetAllAsync()
+        {
+            var accounts = await _context.BankAccounts
+                .Include(ba => ba.Bank)
+                .OrderBy(ba => ba.AccountNo)
+                .ToListAsync();
+
+            return accounts.Select(MapToDto);
+        }
+
+        public async Task<IEnumerable<BankAccountDto>> GetByBankIdAsync(int bankId)
+        {
+            var accounts = await _context.BankAccounts
+                .Include(ba => ba.Bank)
+                .Where(ba => ba.BankId == bankId)
+                .OrderBy(ba => ba.AccountNo)
+                .ToListAsync();
+
+            return accounts.Select(MapToDto);
+        }
+
+        public async Task<BankAccountDto?> GetByIdAsync(int id)
+        {
+            var account = await _context.BankAccounts
+                .Include(ba => ba.Bank)
+                .FirstOrDefaultAsync(ba => ba.Id == id);
+
+            return account == null ? null : MapToDto(account);
+        }
+
+        public async Task<BankAccountDto> CreateAsync(BankAccountDto dto)
+        {
+            // Validate bank exists
+            var bankExists = await _context.Banks.AnyAsync(b => b.Id == dto.BankId);
+
+            if (!bankExists)
+                throw new InvalidOperationException($"Bank with ID {dto.BankId} not found.");
+
+            // Check for duplicate account number
+            var exists = await _context.BankAccounts
+                .AnyAsync(ba => ba.AccountNo == dto.AccountNo);
+
+            if (exists)
+                throw new InvalidOperationException($"Account with number {dto.AccountNo} already exists.");
+
+            var account = new BankAccount
+            {
+                BankId = dto.BankId,
+                AccountNo = dto.AccountNo,
+                AccountName = dto.AccountName,
+                AccountType = dto.AccountType,
+                Balance = dto.Balance,
+                Status = Enum.Parse<AccountStatus>(dto.Status),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.BankAccounts.Add(account);
+            await _context.SaveChangesAsync();
+
+            // Load bank for DTO
+            await _context.Entry(account).Reference(a => a.Bank).LoadAsync();
+
+            return MapToDto(account);
+        }
+
+        public async Task<BankAccountDto> UpdateAsync(BankAccountDto dto)
+        {
+            var account = await _context.BankAccounts
+                .Include(ba => ba.Bank)
+                .FirstOrDefaultAsync(ba => ba.Id == dto.Id);
+
+            if (account == null)
+                throw new InvalidOperationException($"Bank account with ID {dto.Id} not found.");
+
+            // Validate bank exists if being changed
+            if (account.BankId != dto.BankId)
+            {
+                var bankExists = await _context.Banks.AnyAsync(b => b.Id == dto.BankId);
+                if (!bankExists)
+                    throw new InvalidOperationException($"Bank with ID {dto.BankId} not found.");
+            }
+
+            // Check for duplicate account number (excluding current account)
+            var exists = await _context.BankAccounts
+                .AnyAsync(ba => ba.AccountNo == dto.AccountNo && ba.Id != dto.Id);
+
+            if (exists)
+                throw new InvalidOperationException($"Another account with number {dto.AccountNo} already exists.");
+
+            account.BankId = dto.BankId;
+            account.AccountNo = dto.AccountNo;
+            account.AccountName = dto.AccountName;
+            account.AccountType = dto.AccountType;
+            account.Balance = dto.Balance;
+            account.Status = Enum.Parse<AccountStatus>(dto.Status);
+            account.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // Reload bank if changed
+            await _context.Entry(account).Reference(a => a.Bank).LoadAsync();
+
+            return MapToDto(account);
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var account = await _context.BankAccounts
+                .Include(ba => ba.ChequeBooks)
+                .Include(ba => ba.Cheques)
+                .FirstOrDefaultAsync(ba => ba.Id == id);
+
+            if (account == null)
+                return false;
+
+            // Prevent deletion if account has associated cheque books or cheques
+            if (account.ChequeBooks.Any())
+                throw new InvalidOperationException("Cannot delete bank account with associated cheque books.");
+
+            if (account.Cheques.Any())
+                throw new InvalidOperationException("Cannot delete bank account with associated cheques.");
+
+            _context.BankAccounts.Remove(account);
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        private BankAccountDto MapToDto(BankAccount account)
+        {
+            return new BankAccountDto
+            {
+                Id = account.Id,
+                BankId = account.BankId,
+                BankName = account.Bank?.BankName ?? "Unknown",
+                AccountNo = account.AccountNo,
+                AccountName = account.AccountName,
+                AccountType = account.AccountType,
+                Balance = account.Balance,
+                Status = account.Status.ToString()
+            };
+        }
+    }
+}

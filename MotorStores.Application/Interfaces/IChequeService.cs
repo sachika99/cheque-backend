@@ -1,0 +1,15 @@
+﻿using MotorStores.Application.DTOs;
+
+namespace MotorStores.Application.Interfaces
+{
+    public interface IChequeService
+    {
+        Task<ChequeDto> CreateAsync(ChequeDto dto);
+        Task UpdateStatusAsync(string chequeId, string newStatus, string user);
+        Task<IEnumerable<ChequeReportDto>> GetDueThisMonthAsync();
+        Task<IEnumerable<ChequeReportDto>> GetOverdueChequesAsync();
+        Task<IEnumerable<ChequeReportDto>> GetClearedChequesAsync();
+        Task<IEnumerable<ChequeReportDto>> GetAllChequesAsync(string? search = null);
+        Task MarkAsVerifiedAsync(string chequeId);
+    }
+}
