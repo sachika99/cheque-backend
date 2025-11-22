@@ -10,6 +10,7 @@ namespace MotorStores.Application.DTOs
     {
         public string ChequeId { get; set; } = null!;
         public int SupplierId { get; set; }
+        public int ChequeBookId { get; set; }
         public string SupplierName { get; set; } = null!;
         public int BankAccountId { get; set; }
         public string AccountNo { get; set; } = null!;

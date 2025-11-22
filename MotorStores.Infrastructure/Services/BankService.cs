@@ -33,12 +33,11 @@ namespace MotorStores.Infrastructure.Services
 
         public async Task<BankDto> CreateAsync(BankDto dto)
         {
-            // Check for duplicate bank code
-            var exists = await _context.Banks
-                .AnyAsync(b => b.BranchCode == dto.BranchCode);
+           var exists = await _context.Banks
+               .AnyAsync(b => b.BranchCode == dto.BranchCode);
 
             if (exists)
-                throw new InvalidOperationException($"Bank with branch code {dto.BranchCode} already exists.");
+                    throw new InvalidOperationException($"Bank with branch code {dto.BranchCode} already exists.");
 
             var bank = new Bank
             {

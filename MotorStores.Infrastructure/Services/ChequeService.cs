@@ -42,8 +42,10 @@ namespace MotorStores.Infrastructure.Services
 
             var cheque = new Cheque
             {
-                ChequeId = Guid.NewGuid().ToString(),
+                Id = 0,
+                ChequeId = dto.ChequeId,
                 VendorId = dto.SupplierId,
+                ChequeBookId = dto.ChequeBookId,
                 BankAccountId = dto.BankAccountId,
                 InvoiceNo = dto.InvoiceNo,
                 InvoiceDate = dto.InvoiceDate,
@@ -62,18 +64,18 @@ namespace MotorStores.Infrastructure.Services
             _context.Cheques.Add(cheque);
 
             // Create history entry for creation
-            var history = new ChequeHistory
-            {
-                ChequeId = int.Parse(cheque.ChequeId),
-                Action = "Created",
-                OldStatus = null,
-                NewStatus = ChequeStatus.Pending.ToString(),
-                ChangedBy = "System",
-                Remarks = "Cheque created",
-                CreatedAt = DateTime.UtcNow
-            };
+            //var history = new ChequeHistory
+            //{
+            //    ChequeId = int.Parse(cheque.ChequeId),
+            //    Action = "Created",
+            //    OldStatus = null,
+            //    NewStatus = ChequeStatus.Pending.ToString(),
+            //    ChangedBy = "System",
+            //    Remarks = "Cheque created",
+            //    CreatedAt = DateTime.UtcNow
+            //};
 
-            _context.ChequeHistories.Add(history);
+            //_context.ChequeHistories.Add(history);
             await _context.SaveChangesAsync();
 
             return await MapToDto(cheque);
@@ -219,6 +221,19 @@ namespace MotorStores.Infrastructure.Services
             _context.ChequeHistories.Add(history);
             await _context.SaveChangesAsync();
         }
+        public async Task<ChequeReportDto?> GetByIdAsync(string id)
+        {
+            var cheque = await _context.Cheques
+                .Include(c => c.Vendor)
+                .Include(c => c.BankAccount)
+                .FirstOrDefaultAsync(c => c.ChequeId == id);
+
+            if (cheque == null)
+                return null;
+
+            return MapToReportDto(cheque);
+        }
+
 
         private async Task<ChequeDto> MapToDto(Cheque cheque)
         {
@@ -244,6 +259,7 @@ namespace MotorStores.Infrastructure.Services
                 SupplierName = cheque.Vendor?.VendorName ?? "Unknown",
                 BankAccountId = cheque.BankAccountId,
                 AccountNo = cheque.BankAccount?.AccountNo ?? "Unknown",
+                ChequeBookId = cheque.ChequeBookId,
                 InvoiceNo = cheque.InvoiceNo,
                 InvoiceDate = cheque.InvoiceDate,
                 InvoiceAmount = cheque.InvoiceAmount,
@@ -263,14 +279,24 @@ namespace MotorStores.Infrastructure.Services
         {
             return new ChequeReportDto
             {
-                Vendor = cheque.Vendor?.VendorName ?? "Unknown",
-                InvoiceNo = cheque.InvoiceNo ?? "N/A",
-                ChequeNo = cheque.ChequeNo,
-                Amount = cheque.ChequeAmount,
-                DueDate = cheque.DueDate,
-                IsOverdue = cheque.IsOverdue,
+                ChequeId = cheque.ChequeId,
+                SupplierId = cheque.VendorId,
+                SupplierName = cheque.Vendor?.VendorName ?? "Unknown",
+                BankAccountId = cheque.BankAccountId,
                 AccountNo = cheque.BankAccount?.AccountNo ?? "Unknown",
-                Status = cheque.Status.ToString()
+                ChequeBookId = cheque.ChequeBookId,
+                InvoiceNo = cheque.InvoiceNo,
+                InvoiceDate = cheque.InvoiceDate,
+                InvoiceAmount = cheque.InvoiceAmount,
+                ChequeNo = cheque.ChequeNo,
+                ChequeDate = cheque.ChequeDate,
+                DueDate = cheque.DueDate,
+                ChequeAmount = cheque.ChequeAmount,
+                ReceiptNo = cheque.ReceiptNo,
+                PayeeName = cheque.PayeeName,
+                Status = cheque.Status.ToString(),
+                IsVerified = cheque.IsVerified,
+                IsOverdue = cheque.IsOverdue
             };
         }
     }

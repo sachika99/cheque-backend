@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MotorStores.Application.DTOs;
 using MotorStores.Application.Interfaces;
+using MotorStores.Infrastructure.Services;
 
 namespace MotorStores.Api.Controllers
 {
@@ -32,6 +33,19 @@ namespace MotorStores.Api.Controllers
         {
             var cheques = await _chequeService.GetDueThisMonthAsync();
             return Ok(cheques);
+        }
+
+        [HttpGet("{id}")]
+        [ProducesResponseType(typeof(ChequeReportDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ChequeReportDto>> GetChequeById(string id)
+        {
+            var cheque = await _chequeService.GetByIdAsync(id);
+
+            if (cheque == null)
+                return NotFound($"Cheque with ID {id} not found.");
+
+            return Ok(cheque);
         }
 
         // Get overdue cheques
