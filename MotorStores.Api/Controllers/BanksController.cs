@@ -10,10 +10,12 @@ namespace MotorStores.Api.Controllers
     public class BanksController : ControllerBase
     {
         private readonly IBankService _bankService;
+        private readonly IBankAccountService _bankAccountService;
 
-        public BanksController(IBankService bankService)
+        public BanksController(IBankService bankService, IBankAccountService bankAccountService)
         {
             _bankService = bankService;
+            _bankAccountService = bankAccountService;
         }
 
         // Get all banks
@@ -39,15 +41,53 @@ namespace MotorStores.Api.Controllers
             return Ok(bank);
         }
 
-        // Create a new bank
+        [HttpPost("account")]
+        [ProducesResponseType(typeof(BankWithAccountsDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<BankDto>> CreateBank([FromBody] BankWithAccountsDto dto)
+        {
+            try
+            {
+                var bankDto = new BankDto
+                {
+                    BankName = dto.BankName,
+                    BranchName = dto.BranchName,
+                    BranchCode = dto.BranchCode,
+                    Status = dto.Status
+                };
+
+                var savedBank = await _bankService.CreateAsync(bankDto);
+
+                
+                foreach (var acc in dto.BankAccounts)
+                {
+                    acc.BankId = savedBank.Id;
+                    acc.BankName = savedBank.BankName;
+
+                    await _bankAccountService.CreateAsync(acc);
+                }
+
+               
+
+                return CreatedAtAction(nameof(GetBankById), new { id = savedBank.Id }, savedBank);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+
+
         [HttpPost]
         [ProducesResponseType(typeof(BankDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<BankDto>> CreateBank([FromBody] BankDto dto)
+        public async Task<ActionResult<BankDto>> CreateBankNAccount([FromBody] BankDto dto)
         {
             try
             {
                 var bank = await _bankService.CreateAsync(dto);
+
                 return CreatedAtAction(nameof(GetBankById), new { id = bank.Id }, bank);
             }
             catch (InvalidOperationException ex)
