@@ -89,13 +89,14 @@ public static class VendorMapper
             VendorCode = vendor.VendorCode,
             VendorName = vendor.VendorName,
             VendorPhoneNo = vendor.VendorPhoneNo,
+            CrediPeriodDays = vendor.CrediPeriodDays,
             VendorEmail = vendor.VendorEmail,
             Status = vendor.Status,
             StatusDisplayName = GetStatusDisplayName(vendor.Status),
             CanReceivePayments = vendor.CanReceivePayments()
         };
     }
-
+      
     private static string GetStatusDisplayName(VendorStatus status)
     {
         return status switch

@@ -1,5 +1,7 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using MotorStores.Application.DTOs;
+using MotorStores.Application.Features.Vendors.Queries;
 using MotorStores.Application.Interfaces;
 using MotorStores.Infrastructure.Services;
 
@@ -11,22 +13,22 @@ namespace MotorStores.Api.Controllers
     public class ChequesController : ControllerBase
     {
         private readonly IChequeService _chequeService;
+        private readonly IMediator _mediator;
 
-        public ChequesController(IChequeService chequeService)
+        public ChequesController(IChequeService chequeService, IMediator mediator)
         {
             _chequeService = chequeService;
+            _mediator = mediator;
         }
 
-        // Get all cheques with optional search filter
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<ChequeReportDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<ChequeReportDto>>> GetAllCheques([FromQuery] string? search = null)
+        [ProducesResponseType(typeof(IEnumerable<ChequeDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeDto>>> GetAllCheques()
         {
-            var cheques = await _chequeService.GetAllChequesAsync(search);
-            return Ok(cheques);
+            var vendors = await _mediator.Send(new GetAllChequesQuery());
+            return Ok(vendors);
         }
 
-        // Get cheques due this month
         [HttpGet("due-this-month")]
         [ProducesResponseType(typeof(IEnumerable<ChequeReportDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ChequeReportDto>>> GetDueThisMonth()

@@ -23,6 +23,7 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IVendorRepository, VendorRepository>();
+        services.AddScoped<IChequeRepository, ChequeRepository>();
 
         services.AddScoped<IChequeService, ChequeService>();
         services.AddScoped<IBankService, BankService>();

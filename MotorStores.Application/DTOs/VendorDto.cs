@@ -59,6 +59,7 @@ public record VendorListDto
     public string VendorCode { get; init; } = string.Empty;
     public string VendorName { get; init; } = string.Empty;
     public string? VendorPhoneNo { get; init; }
+    public int? CrediPeriodDays { get; init; }
     public string? VendorEmail { get; init; }
     public VendorStatus Status { get; init; }
     public string StatusDisplayName { get; init; } = string.Empty;
