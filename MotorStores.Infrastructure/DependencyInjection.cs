@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IBankService, BankService>();
         services.AddScoped<IBankAccountService, BankAccountService>();
         services.AddScoped<IChequeBookService, ChequeBookService>();
+        services.AddScoped<IInvoiceService, InvoiceService>();
 
         return services;
     }

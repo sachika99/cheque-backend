@@ -25,8 +25,8 @@ namespace MotorStores.Api.Controllers
         [ProducesResponseType(typeof(IEnumerable<ChequeDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ChequeDto>>> GetAllCheques()
         {
-            var vendors = await _mediator.Send(new GetAllChequesQuery());
-            return Ok(vendors);
+            var cheques = await _mediator.Send(new GetAllChequesQuery());
+            return Ok(cheques);
         }
 
         [HttpGet("due-this-month")]
@@ -112,6 +112,34 @@ namespace MotorStores.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpPatch("status/bulk")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> UpdateStatusBulk(
+       [FromBody] BulkUpdateChequeStatusRequest request)
+        {
+            try
+            {
+                await _chequeService.UpdateStatusBulkAsync(
+                    request.ChequeIds,
+                    request.NewStatus,
+                    request.User);
+
+                return Ok(new
+                {
+                    message = "Statuses updated successfully",
+                    count = request.ChequeIds.Count
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
         // Mark cheque as verified
         [HttpPatch("{chequeId}/verify")]
@@ -129,6 +157,23 @@ namespace MotorStores.Api.Controllers
                 return NotFound(ex.Message);
             }
         }
+
+        [HttpPut("{chequeId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateCheque(string chequeId,[FromBody] UpdateChequeRequest request)
+        {
+            try
+            {
+                await _chequeService.UpdateChequeAsync(chequeId, request);
+                return Ok(new { message = "Cheque updated successfully" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
     }
 
     // Request model for updating cheque status

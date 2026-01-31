@@ -48,22 +48,11 @@ namespace MotorStores.Infrastructure.Services
 
         public async Task<ChequeBookDto> CreateAsync(ChequeBookDto dto)
         {
-            // Validate bank account exists
             var accountExists = await _context.BankAccounts.AnyAsync(ba => ba.Id == dto.BankAccountId);
 
             if (!accountExists)
                 throw new InvalidOperationException($"Bank account with ID {dto.BankAccountId} not found.");
-
-            // Check for duplicate cheque book number
-            var exists = await _context.ChequeBooks
-                .AnyAsync(cb => cb.ChequeBookNo == dto.ChequeBookNo);
-
-            if (exists)
-                throw new InvalidOperationException($"Cheque book with number {dto.ChequeBookNo} already exists.");
-
-            // Validate cheque number range
-            if (dto.StartChequeNo >= dto.EndChequeNo)
-                throw new ArgumentException("Start cheque number must be less than end cheque number.");
+   
 
             var chequeBook = new ChequeBook
             {
@@ -80,7 +69,6 @@ namespace MotorStores.Infrastructure.Services
             _context.ChequeBooks.Add(chequeBook);
             await _context.SaveChangesAsync();
 
-            // Load bank account for DTO
             await _context.Entry(chequeBook).Reference(cb => cb.BankAccount).LoadAsync();
 
             return MapToDto(chequeBook);
@@ -186,6 +174,24 @@ namespace MotorStores.Infrastructure.Services
             await _context.SaveChangesAsync();
 
             return nextChequeNo;
+        }
+
+        public async Task<ChequeBookDto> UpdateCurrentChequeNoAsync(int chequeBookId, int currentChequeNo)
+        {
+            var chequeBook = await _context.ChequeBooks
+                .Include(cb => cb.BankAccount)
+                .FirstOrDefaultAsync(cb => cb.Id == chequeBookId);
+
+            if (chequeBook == null)
+                throw new InvalidOperationException($"Cheque book with ID {chequeBookId} not found.");
+
+
+            chequeBook.CurrentChequeNo = currentChequeNo;
+            chequeBook.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapToDto(chequeBook);
         }
 
         private ChequeBookDto MapToDto(ChequeBook chequeBook)

@@ -133,5 +133,26 @@ namespace MotorStores.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpPatch("{id}/current-cheque")]
+        [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ChequeBookDto>> UpdateCurrentChequeNo(int id,[FromBody] int currentChequeNo)
+        {
+            try
+            {
+                var result = await _chequeBookService.UpdateCurrentChequeNoAsync(id, currentChequeNo);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
     }
 }

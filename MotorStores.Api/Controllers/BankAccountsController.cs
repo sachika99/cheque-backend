@@ -57,6 +57,7 @@ namespace MotorStores.Api.Controllers
             try
             {
                 var account = await _bankAccountService.CreateAsync(dto);
+
                 return CreatedAtAction(nameof(GetAccountById), new { id = account.Id }, account);
             }
             catch (InvalidOperationException ex)
@@ -107,5 +108,22 @@ namespace MotorStores.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        // Activate a bank account (deactivate others in same bank)
+        [HttpPatch("{id}/activate")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ActivateAccount(int id)
+        {
+            try
+            {
+                await _bankAccountService.ActivateAccountAsync(id);
+                return Ok(new { message = "Account activated successfully." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
     }
 }

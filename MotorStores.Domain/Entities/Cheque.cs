@@ -40,5 +40,6 @@ namespace MotorStores.Domain.Entities
         public ChequeBook? ChequeBook { get; set; }
         public BankAccount? BankAccount { get; set; }
         public ICollection<ChequeHistory> ChequeHistories { get; set; } = new List<ChequeHistory>();
+        public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     }
 }

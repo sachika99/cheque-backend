@@ -1,55 +1,38 @@
 using Microsoft.EntityFrameworkCore;
 using MotorStores.Application.Interfaces;
 using MotorStores.Domain.Entities;
-using MotorStores.Domain.Enums;
 using MotorStores.Infrastructure.Persistence;
 
-namespace MotorStores.Infrastructure.Repositories;
-
-public class ChequeRepository : Repository<Cheque>, IChequeRepository
+namespace MotorStores.Infrastructure.Repositories
 {
-    public ChequeRepository(ApplicationDbContext context) : base(context)
+    public class ChequeRepository : Repository<Cheque>, IChequeRepository
     {
+        private readonly ApplicationDbContext _context;
+
+        public ChequeRepository(ApplicationDbContext context) : base(context)
+        {
+            _context = context;
+        }
+
+
+        public override async Task<IEnumerable<Cheque>> GetAllAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Cheques
+
+                .Include(c => c.Invoices)
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Cheque?> GetByChequeIdAsync(
+            string chequeId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Cheques
+  
+                .Include(c => c.Invoices)
+                .FirstOrDefaultAsync(c => c.ChequeId == chequeId, cancellationToken);
+        }
     }
-
-    //public async Task<Vendor?> GetByVendorCodeAsync(string vendorCode, CancellationToken cancellationToken = default)
-    //{
-    //    return await _dbSet
-    //        .FirstOrDefaultAsync(v => v.VendorCode == vendorCode, cancellationToken);
-    //}
-
-    //public async Task<IEnumerable<Vendor>> SearchByNameAsync(string searchTerm, CancellationToken cancellationToken = default)
-    //{
-    //    return await _dbSet
-    //        .Where(v => v.VendorName.Contains(searchTerm))
-    //        .OrderBy(v => v.VendorName)
-    //        .ToListAsync(cancellationToken);
-    //}
-
-    //public async Task<IEnumerable<Vendor>> GetActiveVendorsAsync(CancellationToken cancellationToken = default)
-    //{
-    //    return await _dbSet
-    //        .Where(v => v.Status == VendorStatus.Active)
-    //        .OrderBy(v => v.VendorName)
-    //        .ToListAsync(cancellationToken);
-    //}
-
-    //public async Task<bool> VendorCodeExistsAsync(string vendorCode, int? excludeId = null, CancellationToken cancellationToken = default)
-    //{
-    //    var query = _dbSet.Where(v => v.VendorCode == vendorCode);
-
-    //    if (excludeId.HasValue)
-    //    {
-    //        query = query.Where(v => v.Id != excludeId.Value);
-    //    }
-
-    //    return await query.AnyAsync(cancellationToken);
-    //}
-
-    //public async Task<Vendor?> GetLastVendorAsync(CancellationToken cancellationToken = default)
-    //{
-    //    return await _dbSet
-    //        .OrderByDescending(v => v.Id)
-    //        .FirstOrDefaultAsync(cancellationToken);
 }
-//}

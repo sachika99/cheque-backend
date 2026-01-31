@@ -11,5 +11,6 @@ namespace MotorStores.Application.Interfaces
         Task<ChequeBookDto> UpdateAsync(ChequeBookDto dto);
         Task<bool> DeleteAsync(int id);
         Task<string> GetNextChequeNumberAsync(int chequeBookId);
+        Task<ChequeBookDto> UpdateCurrentChequeNoAsync(int chequeBookId, int currentChequeNo);
     }
 }

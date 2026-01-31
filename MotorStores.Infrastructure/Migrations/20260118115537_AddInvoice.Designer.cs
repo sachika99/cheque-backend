@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MotorStores.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using MotorStores.Infrastructure.Persistence;
 namespace MotorStores.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260118115537_AddInvoice")]
+    partial class AddInvoice
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -489,7 +492,10 @@ namespace MotorStores.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ChequeId")
+                    b.Property<int>("ChequeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ChequeId1")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
@@ -515,6 +521,8 @@ namespace MotorStores.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ChequeId");
+
+                    b.HasIndex("ChequeId1");
 
                     b.ToTable("Invoices", (string)null);
                 });
@@ -847,9 +855,14 @@ namespace MotorStores.Infrastructure.Migrations
             modelBuilder.Entity("MotorStores.Domain.Entities.Invoice", b =>
                 {
                     b.HasOne("MotorStores.Domain.Entities.Cheque", "Cheque")
-                        .WithMany("Invoices")
+                        .WithMany()
                         .HasForeignKey("ChequeId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MotorStores.Domain.Entities.Cheque", null)
+                        .WithMany("Invoices")
+                        .HasForeignKey("ChequeId1");
 
                     b.Navigation("Cheque");
                 });

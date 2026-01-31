@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -16,7 +16,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
 
@@ -24,7 +23,6 @@ builder.Services.AddScoped<EmailService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
-
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 {
@@ -35,11 +33,10 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", opt =>
     {
-        opt.TokenValidationParameters = new()
+        opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -57,12 +54,14 @@ builder.Services.AddAuthentication("Bearer")
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("frontend", p => p
-        .WithOrigins("http://localhost:3000", "http://localhost:5173")
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials());
+        .AllowCredentials()
+        .SetIsOriginAllowed(origin =>
+            origin.StartsWith("http://localhost") ||
+            origin.Contains(".railway.app")
+        ));
 });
-
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSignalR();
@@ -70,17 +69,31 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
+app.UseSwagger();
+app.UseSwaggerUI();
+
+
+app.UseCors("frontend");
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseHttpsRedirection();
 }
 
-app.UseCors("AllowReactApp");  
-
-app.UseHttpsRedirection();
-app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
+
+/* =========================
+   PORT HANDLING
+========================= */
+
+// ✅ Only bind PORT when running on Railway
+if (!app.Environment.IsDevelopment())
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+    app.Urls.Add($"http://0.0.0.0:{port}");
+}
+
 app.Run();

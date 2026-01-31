@@ -38,6 +38,11 @@ namespace MotorStores.Infrastructure.Services
 
             if (exists)
                     throw new InvalidOperationException($"Bank with branch code {dto.BranchCode} already exists.");
+            var existsBanks = await _context.Banks
+             .AnyAsync(b => b.BankName == dto.BankName && b.BranchName == dto.BranchName);
+
+            if (exists)
+                throw new InvalidOperationException($"Bank with bank {dto.BankName} with branch {dto.BranchName} already exists.");
 
             var bank = new Bank
             {

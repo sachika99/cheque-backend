@@ -6,6 +6,8 @@ namespace MotorStores.Application.Interfaces
     {
         Task<IEnumerable<BankAccountDto>> GetAllAsync();
         Task<IEnumerable<BankAccountDto>> GetByBankIdAsync(int bankId);
+        Task ActivateAccountAsync(int accountId);
+
         Task<BankAccountDto?> GetByIdAsync(int id);
         Task<BankAccountDto> CreateAsync(BankAccountDto dto);
         Task<BankAccountDto> UpdateAsync(BankAccountDto dto);

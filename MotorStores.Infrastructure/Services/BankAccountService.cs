@@ -4,16 +4,19 @@ using MotorStores.Application.Interfaces;
 using MotorStores.Domain.Entities;
 using MotorStores.Domain.Enums;
 using MotorStores.Infrastructure.Persistence;
+using System;
 
 namespace MotorStores.Infrastructure.Services
 {
     public class BankAccountService : IBankAccountService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IChequeBookService _chequeBookService;
 
-        public BankAccountService(ApplicationDbContext context)
+        public BankAccountService(ApplicationDbContext context, IChequeBookService chequeBookService)
         {
             _context = context;
+            _chequeBookService = chequeBookService;
         }
 
         public async Task<IEnumerable<BankAccountDto>> GetAllAsync()
@@ -48,18 +51,15 @@ namespace MotorStores.Infrastructure.Services
 
         public async Task<BankAccountDto> CreateAsync(BankAccountDto dto)
         {
-            // Validate bank exists
             var bankExists = await _context.Banks.AnyAsync(b => b.Id == dto.BankId);
-
             if (!bankExists)
                 throw new InvalidOperationException($"Bank with ID {dto.BankId} not found.");
 
-            // Check for duplicate account number
-            var exists = await _context.BankAccounts
-                .AnyAsync(ba => ba.AccountNo == dto.AccountNo);
+            //var exists = await _context.BankAccounts
+            //    .AnyAsync(ba => ba.AccountNo == dto.AccountNo);
 
-            if (exists)
-                throw new InvalidOperationException($"Account with number {dto.AccountNo} already exists.");
+            //if (exists)
+            //    throw new InvalidOperationException($"Account with number {dto.AccountNo} already exists.");
 
             var account = new BankAccount
             {
@@ -75,11 +75,25 @@ namespace MotorStores.Infrastructure.Services
             _context.BankAccounts.Add(account);
             await _context.SaveChangesAsync();
 
-            // Load bank for DTO
-            await _context.Entry(account).Reference(a => a.Bank).LoadAsync();
+            await _context.Entry(account)
+                .Reference(a => a.Bank)
+                .LoadAsync();
 
+            var chequeBookDto = new ChequeBookDto
+            {
+                BankAccountId = account.Id,
+                ChequeBookNo = "001",
+                StartChequeNo = 0,
+                EndChequeNo = 0,
+                CurrentChequeNo = 0,
+                Status = "Active",
+                IssuedDate = DateTime.UtcNow,
+            };
+
+            await _chequeBookService.CreateAsync(chequeBookDto);
             return MapToDto(account);
         }
+
 
         public async Task<BankAccountDto> UpdateAsync(BankAccountDto dto)
         {
@@ -151,6 +165,7 @@ namespace MotorStores.Infrastructure.Services
                 Id = account.Id,
                 BankId = account.BankId,
                 BankName = account.Bank?.BankName ?? "Unknown",
+                BranchName = account.Bank?.BranchName ?? "Unknown",
                 AccountNo = account.AccountNo,
                 AccountName = account.AccountName,
                 AccountType = account.AccountType,
@@ -158,5 +173,31 @@ namespace MotorStores.Infrastructure.Services
                 Status = account.Status.ToString()
             };
         }
+
+        public async Task ActivateAccountAsync(int accountId)
+        {
+            var account = await _context.BankAccounts
+                .FirstOrDefaultAsync(a => a.Id == accountId);
+
+            if (account == null)
+                throw new InvalidOperationException($"Bank account with ID {accountId} not found.");
+
+            // Deactivate all other accounts of the same bank
+            var accountsInBank = await _context.BankAccounts
+                .Where(a => a.BankId == account.BankId)
+                .ToListAsync();
+
+            foreach (var acc in accountsInBank)
+            {
+                acc.Status = acc.Id == accountId
+                    ? AccountStatus.Active
+                    : AccountStatus.Inactive;
+
+                acc.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

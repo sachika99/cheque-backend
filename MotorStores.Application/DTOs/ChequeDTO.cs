@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MotorStores.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,10 +28,12 @@ namespace MotorStores.Application.DTOs
         public string Status { get; set; } = "Pending";
         public bool IsVerified { get; set; }
         public bool IsOverdue { get; set; }
+        public List<InvoiceDto> Invoices { get; set; } = new();
     }
 
     public class ChequeReportDto
     {
+        public int Id { get; set; }
         public string ChequeId { get; set; } = null!;
         public int SupplierId { get; set; }
         public int ChequeBookId { get; set; }
@@ -49,5 +52,30 @@ namespace MotorStores.Application.DTOs
         public string Status { get; set; } = "Pending";
         public bool IsVerified { get; set; }
         public bool IsOverdue { get; set; }
+        public List<InvoiceDto> Invoices { get; set; } = new ();
     }
+
+    public class BulkUpdateChequeStatusRequest
+    {
+        public List<string> ChequeIds { get; set; } = new();
+        public string NewStatus { get; set; }
+        public string User { get; set; }
+    }
+
+    public class UpdateChequeRequest
+    {
+        public int ChequeBookId { get; set; }
+        public int BankAccountId { get; set; }
+        public string AccountNo { get; set; } = null!;
+        public DateTime? InvoiceDate { get; set; }
+        public decimal InvoiceAmount { get; set; }
+        public string ChequeNo { get; set; } = null!;
+        public DateTime ChequeDate { get; set; }
+        public DateTime? DueDate { get; set; }
+        public decimal ChequeAmount { get; set; }
+        public string? PayeeName { get; set; }
+        public string Status { get; set; }
+        public List<InvoiceDto> Invoices { get; set; } = new();
+    }
+
 }

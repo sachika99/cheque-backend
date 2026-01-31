@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using MotorStores.Application.DTOs;
 using MotorStores.Domain.Entities;
 using MotorStores.Domain.Enums;
@@ -80,6 +80,37 @@ public static class ChequeMapper
     //        CanReceivePayments = vendor.CanReceivePayments()
     //    };
     //}
+    public static ChequeDto MapToDto(Cheque cheque)
+    {
+        return new ChequeDto
+        {
+             Id = cheque.Id,
+            ChequeId = cheque.ChequeId,
+            SupplierId = cheque.VendorId,
+            SupplierName = cheque.Vendor?.VendorName ?? "Unknown",
+            BankAccountId = cheque.BankAccountId,
+            AccountNo = cheque.BankAccount?.AccountNo ?? "Unknown",
+            ChequeBookId = cheque.ChequeBookId,
+            ChequeNo = cheque.ChequeNo,
+            InvoiceDate = cheque.InvoiceDate,
+            ChequeDate = cheque.ChequeDate,
+            DueDate = cheque.DueDate,
+            ChequeAmount = cheque.ChequeAmount,
+            ReceiptNo = cheque.ReceiptNo,
+            PayeeName = cheque.PayeeName,
+            Status = cheque.Status.ToString(),
+            IsVerified = cheque.IsVerified,
+            IsOverdue = cheque.IsOverdue,
+
+            // ✅ Invoices
+            Invoices = cheque.Invoices.Select(i => new InvoiceDto
+            {
+                Id = i.Id,
+                InvoiceNo = i.InvoiceNo,
+                InvoiceAmount = i.InvoiceAmount
+            }).ToList()
+        };
+    }
     public static  ChequeDto MapToReportDto(Cheque cheque)
     {
         return new ChequeDto
@@ -102,7 +133,13 @@ public static class ChequeMapper
             PayeeName = cheque.PayeeName,
             Status = cheque.Status.ToString(),
             IsVerified = cheque.IsVerified,
-            IsOverdue = cheque.IsOverdue
+            IsOverdue = cheque.IsOverdue,
+             Invoices = cheque.Invoices.Select(i => new InvoiceDto
+             {
+                 Id = i.Id,
+                 InvoiceNo = i.InvoiceNo,
+                 InvoiceAmount = i.InvoiceAmount
+             }).ToList()
         };
     }
     //public static VendorListDto ToListDto(Vendor vendor)

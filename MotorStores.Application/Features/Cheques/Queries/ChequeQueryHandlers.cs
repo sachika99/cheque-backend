@@ -39,7 +39,8 @@ namespace MotorStores.Application.Features.Vendors.Queries;
 //    }
 //}
 
-public class GetAllChequesQueryHandler : IRequestHandler<GetAllChequesQuery, IEnumerable<ChequeDto>>
+public class GetAllChequesQueryHandler
+    : IRequestHandler<GetAllChequesQuery, IEnumerable<ChequeDto>>
 {
     private readonly IChequeRepository _chequeRepository;
 
@@ -48,12 +49,16 @@ public class GetAllChequesQueryHandler : IRequestHandler<GetAllChequesQuery, IEn
         _chequeRepository = chequeRepository;
     }
 
-    public async Task<IEnumerable<ChequeDto>> Handle(GetAllChequesQuery request, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ChequeDto>> Handle(
+        GetAllChequesQuery request,
+        CancellationToken cancellationToken)
     {
-        var vendors = await _chequeRepository.GetAllAsync(cancellationToken);
-        return vendors.Select(ChequeMapper.MapToReportDto);
+        var cheques = await _chequeRepository.GetAllAsync(cancellationToken);
+
+        return cheques.Select(ChequeMapper.MapToDto);
     }
 }
+
 public class GetAllChequesQueryHandlerById : IRequestHandler<GetAllChequesQueryById, ChequeDto>
 {
     private readonly IChequeRepository _chequeRepository;

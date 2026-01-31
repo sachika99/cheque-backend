@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using MotorStores.Application.DTOs;
 using MotorStores.Application.Interfaces;
 using MotorStores.Domain.Entities;
@@ -10,10 +10,13 @@ namespace MotorStores.Infrastructure.Services
     public class ChequeService : IChequeService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IChequeBookService _chequeBookService;
 
-        public ChequeService(ApplicationDbContext context)
+        public ChequeService(ApplicationDbContext context, IChequeBookService chequeBookService)
         {
             _context = context;
+            _chequeBookService = chequeBookService;
+
         }
 
         public async Task<ChequeDto> CreateAsync(ChequeDto dto)
@@ -78,6 +81,22 @@ namespace MotorStores.Infrastructure.Services
             //_context.ChequeHistories.Add(history);
             await _context.SaveChangesAsync();
 
+            foreach (var inv in dto.Invoices)
+            {
+                var invoice = new Invoice
+                {
+                    Id = 0,
+                    ChequeId = cheque.Id,
+                    InvoiceNo = inv.InvoiceNo,
+                    InvoiceAmount = inv.InvoiceAmount
+                };
+
+                _context.Invoices.Add(invoice);
+            }
+
+            await _context.SaveChangesAsync();
+            await _chequeBookService.UpdateCurrentChequeNoAsync(cheque.ChequeBookId, int.Parse(cheque.ChequeNo));
+
             return await MapToDto(cheque);
         }
 
@@ -110,7 +129,7 @@ namespace MotorStores.Infrastructure.Services
             // Create history entry
             var history = new ChequeHistory
             {
-                ChequeId = int.Parse(cheque.ChequeId),
+                ChequeId = cheque.Id,
                 Action = "Status Changed",
                 OldStatus = oldStatus,
                 NewStatus = newStatus,
@@ -121,6 +140,131 @@ namespace MotorStores.Infrastructure.Services
 
             _context.ChequeHistories.Add(history);
             await _context.SaveChangesAsync();
+        }
+        public async Task UpdateStatusBulkAsync(
+    List<string> chequeIds,
+    string newStatus,
+    string user)
+        {
+            if (chequeIds == null || !chequeIds.Any())
+                throw new ArgumentException("ChequeIds cannot be empty.");
+
+            var cheques = await _context.Cheques
+                .Where(c => chequeIds.Contains(c.ChequeId))
+                .ToListAsync();
+
+            if (cheques.Count != chequeIds.Count)
+                throw new InvalidOperationException("One or more cheques not found.");
+
+            foreach (var cheque in cheques)
+            {
+                await UpdateChequeInternalAsync(cheque, newStatus, user);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+        public async Task UpdateChequeAsync(string chequeId, UpdateChequeRequest request)
+        {
+            var cheque = await _context.Cheques
+                .Include(c => c.Invoices)
+                .FirstOrDefaultAsync(c => c.ChequeId == chequeId);
+
+            if (cheque == null)
+                throw new InvalidOperationException($"Cheque with ID {chequeId} not found.");
+
+            // ================= UPDATE MAIN CHEQUE =================
+            cheque.ChequeBookId = request.ChequeBookId;
+            cheque.BankAccountId = request.BankAccountId;
+            cheque.InvoiceDate = request.InvoiceDate;
+            cheque.InvoiceAmount = request.InvoiceAmount;
+            cheque.ChequeNo = request.ChequeNo;
+            cheque.ChequeDate = request.ChequeDate;
+            cheque.DueDate = request.DueDate;
+            cheque.ChequeAmount = request.ChequeAmount;
+            cheque.PayeeName = request.PayeeName;
+
+            cheque.UpdatedAt = DateTime.UtcNow;
+
+            // ================= SYNC INVOICES (UPDATE / INSERT / DELETE) =================
+
+            // 1️⃣ DELETE removed invoices
+            var incomingIds = request.Invoices
+                .Where(i => i.Id > 0)
+                .Select(i => i.Id)
+                .ToList();
+
+            var invoicesToDelete = cheque.Invoices
+                .Where(i => !incomingIds.Contains(i.Id))
+                .ToList();
+
+            _context.Invoices.RemoveRange(invoicesToDelete);
+
+            // 2️⃣ UPDATE existing & INSERT new invoices
+            foreach (var inv in request.Invoices)
+            {
+                var existingInvoice = cheque.Invoices
+                    .FirstOrDefault(i =>
+                        (inv.Id > 0 && i.Id == inv.Id) ||
+                        (!string.IsNullOrWhiteSpace(inv.InvoiceNo) && i.InvoiceNo == inv.InvoiceNo)
+                    );
+
+                if (existingInvoice != null)
+                {
+                    // UPDATE
+                    existingInvoice.InvoiceNo = inv.InvoiceNo;
+                    existingInvoice.InvoiceAmount = inv.InvoiceAmount;
+                    existingInvoice.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    // INSERT
+                    _context.Invoices.Add(new Invoice
+                    {
+                        ChequeId = cheque.Id,
+                        InvoiceNo = inv.InvoiceNo,
+                        InvoiceAmount = inv.InvoiceAmount,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task UpdateChequeInternalAsync(
+            Cheque cheque,
+            string newStatus,
+            string user)
+        {
+            if (!Enum.TryParse<ChequeStatus>(newStatus, out var status))
+                throw new ArgumentException($"Invalid status: {newStatus}");
+
+            var oldStatus = cheque.Status.ToString();
+
+            if (oldStatus == newStatus)
+                return; // no change
+
+            cheque.Status = status;
+            cheque.UpdatedAt = DateTime.UtcNow;
+
+            if (status == ChequeStatus.Issued)
+                cheque.IssueDate = DateTime.UtcNow;
+
+            if (status == ChequeStatus.Cleared)
+                cheque.ClearedDate = DateTime.UtcNow;
+
+            var history = new ChequeHistory
+            {
+                ChequeId = cheque.Id,
+                Action = "Status Changed",
+                OldStatus = oldStatus,
+                NewStatus = newStatus,
+                ChangedBy = user,
+                Remarks = $"Status changed from {oldStatus} to {newStatus}",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.ChequeHistories.Add(history);
         }
 
         public async Task<IEnumerable<ChequeReportDto>> GetDueThisMonthAsync()
@@ -226,6 +370,7 @@ namespace MotorStores.Infrastructure.Services
             var cheque = await _context.Cheques
                 .Include(c => c.Vendor)
                 .Include(c => c.BankAccount)
+                .Include(c => c.Invoices)
                 .FirstOrDefaultAsync(c => c.ChequeId == id);
 
             if (cheque == null)
@@ -279,6 +424,7 @@ namespace MotorStores.Infrastructure.Services
         {
             return new ChequeReportDto
             {
+               Id = cheque.Id,
                 ChequeId = cheque.ChequeId,
                 SupplierId = cheque.VendorId,
                 SupplierName = cheque.Vendor?.VendorName ?? "Unknown",
@@ -296,7 +442,13 @@ namespace MotorStores.Infrastructure.Services
                 PayeeName = cheque.PayeeName,
                 Status = cheque.Status.ToString(),
                 IsVerified = cheque.IsVerified,
-                IsOverdue = cheque.IsOverdue
+                IsOverdue = cheque.IsOverdue,
+                 Invoices = cheque.Invoices.Select(i => new InvoiceDto
+                 {
+                     Id = i.Id,
+                     InvoiceNo = i.InvoiceNo,
+                     InvoiceAmount = i.InvoiceAmount
+                 }).ToList()
             };
         }
     }

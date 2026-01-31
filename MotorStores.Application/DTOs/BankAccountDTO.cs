@@ -11,6 +11,7 @@ namespace MotorStores.Application.DTOs
         public int Id { get; set; }
         public int BankId { get; set; }
         public string BankName { get; set; } = null!;
+        public string BranchName { get; set; } = null!;
         public string AccountNo { get; set; } = null!;
         public string AccountName { get; set; } = null!;
         public string AccountType { get; set; } = null!;

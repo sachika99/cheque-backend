@@ -5,6 +5,7 @@ namespace MotorStores.Application.Interfaces
 {
     public interface IChequeRepository : IRepository<Cheque>
     {
+        Task<IEnumerable<Cheque>> GetAllAsync(CancellationToken cancellationToken);
         //Task<ChequeDto> CreateAsync(ChequeDto dto);
         //Task UpdateStatusAsync(string chequeId, string newStatus, string user);
         //Task<IEnumerable<ChequeReportDto>> GetDueThisMonthAsync();
