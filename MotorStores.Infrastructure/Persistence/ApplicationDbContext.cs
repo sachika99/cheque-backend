@@ -21,7 +21,7 @@ namespace MotorStores.Infrastructure.Persistence
         public DbSet<ChequeBook> ChequeBooks => Set<ChequeBook>();
         public DbSet<Cheque> Cheques => Set<Cheque>();
         public DbSet<ChequeHistory> ChequeHistories => Set<ChequeHistory>();
-        public DbSet<Invoice> Invoices => Set<Invoice>();
+        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
