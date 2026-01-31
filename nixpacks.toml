@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["dotnet-sdk_8"]
+
+[phases.build]
+cmds = [
+  "dotnet restore MotorStores.ChequeSystem.sln",
+  "dotnet build MotorStores.ChequeSystem.sln -c Release"
+]
+
+[start]
+cmd = "dotnet run --project MotorStores.Api/MotorStores.Api.csproj --urls http://0.0.0.0:8080"
