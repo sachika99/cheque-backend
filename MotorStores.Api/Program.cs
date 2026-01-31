@@ -11,11 +11,11 @@ using MotorStores.Infrastructure.Services;
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
 
-// ================= SERVICES =================
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
@@ -25,6 +25,7 @@ builder.Services.AddInfrastructureServices(cfg);
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
 
+
 builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 {
     opt.Password.RequireNonAlphanumeric = false;
@@ -33,6 +34,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
+
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", opt =>
@@ -52,45 +54,33 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-// ✅ ALLOW ANY FRONTEND (local, Railway, Vercel, etc.)
 builder.Services.AddCors(opt =>
 {
-    opt.AddPolicy("frontend", p =>
-        p.AllowAnyOrigin()
-         .AllowAnyHeader()
-         .AllowAnyMethod());
+    opt.AddPolicy("frontend", p => p
+        .WithOrigins("http://localhost:3000", "http://localhost:5173")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
 });
+
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSignalR();
 
-// ================= APP =================
 
 var app = builder.Build();
 
-// ✅ Swagger in ALL environments (Railway needs this)
-app.UseSwagger();
-app.UseSwaggerUI();
-
-// ✅ CORS (ONLY ONCE)
-app.UseCors("frontend");
-
-// ❌ HTTPS redirection breaks Railway → keep only for local
 if (app.Environment.IsDevelopment())
 {
-    app.UseHttpsRedirection();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
+app.UseCors("AllowReactApp");  
+
+app.UseHttpsRedirection();
+app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
-// ================= RAILWAY PORT FIX =================
-var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrWhiteSpace(port))
-{
-    app.Urls.Add($"http://0.0.0.0:{port}");
-}
-
 app.Run();
