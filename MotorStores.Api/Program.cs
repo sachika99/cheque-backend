@@ -20,7 +20,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
 
-builder.Services.AddScoped<EmailService>();
+//builder.Services.AddScoped<EmailService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
