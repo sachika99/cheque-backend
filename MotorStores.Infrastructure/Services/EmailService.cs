@@ -8,10 +8,10 @@ namespace MotorStores.Infrastructure.Services
 {
     public class EmailResult
     {
-        public bool status { get; set; }
-        public int otp { get; set; }
-        public string email { get; set; } = string.Empty;
-        public string username { get; set; } = string.Empty;
+        public bool? status { get; set; }
+        public int? otp { get; set; }
+        public string? email { get; set; } = string.Empty;
+        public string? username { get; set; } = string.Empty;
     }
 
     public class EmailService

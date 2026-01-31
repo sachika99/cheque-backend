@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using MotorStores.Application;
 using MotorStores.Infrastructure;
 using MotorStores.Infrastructure.Entities;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
+using System.Text;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static System.Net.WebRequestMethods;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
@@ -14,7 +16,6 @@ var cfg = builder.Configuration;
 /* =========================
    SERVICES
 ========================= */
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -22,11 +23,14 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
 
-// ✅ REQUIRED – AuthController depends on this
 builder.Services.AddScoped<EmailService>();
 
+// ✅ Read connection string from environment variable OR appsettings.json
+var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                       ?? cfg.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
-    opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
+    opt.UseSqlServer(connectionString));
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 {
@@ -46,16 +50,17 @@ builder.Services.AddAuthentication("Bearer")
         ValidateAudience = true,
         ValidateIssuerSigningKey = true,
         ValidateLifetime = false,
-        ValidIssuer = cfg["Jwt:Issuer"],
-        ValidAudience = cfg["Jwt:Audience"],
+        // ✅ Read from environment variables first
+        ValidIssuer = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? cfg["Jwt:Issuer"],
+        ValidAudience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? cfg["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!)
+            Encoding.UTF8.GetBytes(
+                Environment.GetEnvironmentVariable("Jwt__Key") ?? cfg["Jwt:Key"]!)
         ),
         ClockSkew = TimeSpan.Zero
     };
 });
 
-// ✅ Railway-safe CORS (allow ANY frontend)
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("frontend", p => p
@@ -70,24 +75,13 @@ builder.Services.AddSignalR();
 /* =========================
    BUILD
 ========================= */
-
 var app = builder.Build();
 
-/* =========================
-   SWAGGER
-========================= */
-
-// Swagger works both locally & Railway
 app.UseSwagger();
 app.UseSwaggerUI();
 
-/* =========================
-   MIDDLEWARE
-========================= */
-
 app.UseCors("frontend");
 
-// HTTPS only for local
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -95,17 +89,35 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 /* =========================
    PORT HANDLING (Railway)
 ========================= */
-
-var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrEmpty(port))
-{
-    app.Urls.Add($"http://0.0.0.0:{port}");
-}
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Run();
+```
+
+## Key Changes:
+
+1. * *Connection String * *: Reads from `ConnectionStrings__DefaultConnection` environment variable
+2. **JWT Config**: Reads `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key` from environment variables
+3. **Port**: Always binds to `0.0.0.0` with Railway's PORT
+
+## Update Railway Variables:
+
+In Railway, update your variable names to match .NET's format:
+```
+ConnectionStrings__DefaultConnection = Server=my-sqlserver-db...
+Jwt__Issuer = https://your-railway-app.up.railway.app
+Jwt__Audience = https://your-frontend-url.com
+Jwt__Key = h3Y7e2aZ9qT1xW8pS4uN0vL6kB5rC3mD
+Jwt__AccessTokenMinutes = 10
+Jwt__RefreshTokenDays = 14
+Email__From = no - reply@motorstores.com
+Email__SmtpHost = smtp.gmail.com
+Email__SmtpPort = 587
+Email__User = devtesting648@gmail.com
+Email__Password = lyrmfufrvclngyna
