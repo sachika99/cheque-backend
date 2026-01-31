@@ -16,6 +16,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
 
@@ -23,6 +24,7 @@ builder.Services.AddScoped<EmailService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
+
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 {
@@ -33,10 +35,11 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", opt =>
     {
-        opt.TokenValidationParameters = new TokenValidationParameters
+        opt.TokenValidationParameters = new()
         {
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -54,14 +57,12 @@ builder.Services.AddAuthentication("Bearer")
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("frontend", p => p
+        .WithOrigins("http://localhost:3000", "http://localhost:5173")
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials()
-        .SetIsOriginAllowed(origin =>
-            origin.StartsWith("http://localhost") ||
-            origin.Contains(".railway.app")
-        ));
+        .AllowCredentials());
 });
+
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSignalR();
@@ -69,31 +70,17 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
-
-
-app.UseCors("frontend");
-
 if (app.Environment.IsDevelopment())
 {
-    app.UseHttpsRedirection();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
+app.UseCors("AllowReactApp");  
+
+app.UseHttpsRedirection();
+app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
-/* =========================
-   PORT HANDLING
-========================= */
-
-// ✅ Only bind PORT when running on Railway
-if (!app.Environment.IsDevelopment())
-{
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-    app.Urls.Add($"http://0.0.0.0:{port}");
-}
-
 app.Run();
