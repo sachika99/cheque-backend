@@ -1,20 +1,17 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using MotorStores.Application;
 using MotorStores.Infrastructure;
 using MotorStores.Infrastructure.Entities;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
 
-/* =========================
-   SERVICES
-========================= */
+// ================= SERVICES =================
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -37,80 +34,48 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-/* =========================
-   JWT AUTH
-========================= */
-
-var jwtKey = cfg["Jwt:Key"];
-var jwtIssuer = cfg["Jwt:Issuer"];
-var jwtAudience = cfg["Jwt:Audience"];
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(opt =>
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", opt =>
     {
-        opt.TokenValidationParameters = new TokenValidationParameters
+        opt.TokenValidationParameters = new()
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateIssuerSigningKey = true,
-
-            // ✅ keep this true in real prod if you want token expiry enforced
             ValidateLifetime = false,
-
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
+            ValidIssuer = cfg["Jwt:Issuer"],
+            ValidAudience = cfg["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtKey ?? "TEMP_DEV_KEY_CHANGE_ME_123456789")
+                Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!)
             ),
             ClockSkew = TimeSpan.Zero
         };
     });
 
-/* =========================
-   CORS
-========================= */
-
+// ✅ ALLOW ANY FRONTEND (local, Railway, Vercel, etc.)
 builder.Services.AddCors(opt =>
 {
-    opt.AddPolicy("frontend", p => p
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()
-        .SetIsOriginAllowed(origin =>
-            origin.StartsWith("http://localhost") ||
-            origin.StartsWith("https://localhost") ||
-            origin.Contains(".railway.app")
-        ));
+    opt.AddPolicy("frontend", p =>
+        p.AllowAnyOrigin()
+         .AllowAnyHeader()
+         .AllowAnyMethod());
 });
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSignalR();
 
-/* =========================
-   BUILD APP
-========================= */
+// ================= APP =================
 
 var app = builder.Build();
 
-/* =========================
-   SWAGGER
-========================= */
+// ✅ Swagger in ALL environments (Railway needs this)
+app.UseSwagger();
+app.UseSwaggerUI();
 
-// ✅ Usually keep Swagger only in dev (safer)
-// If you want Swagger in Railway too, remove this if and keep always.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-/* =========================
-   MIDDLEWARE
-========================= */
-
+// ✅ CORS (ONLY ONCE)
 app.UseCors("frontend");
 
-// ✅ HTTPS redirect only for local dev
+// ❌ HTTPS redirection breaks Railway → keep only for local
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -120,19 +85,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-//app.MapHub<NotificationHub>("/hubs/notification");
 
-/* =========================
-   ✅ RAILWAY PORT FIX
-========================= */
-
-// Railway provides PORT env var, and expects 0.0.0.0 binding.
+// ================= RAILWAY PORT FIX =================
 var port = Environment.GetEnvironmentVariable("PORT");
-
-// Only add if PORT exists AND urls not already set
 if (!string.IsNullOrWhiteSpace(port))
 {
-    app.Urls.Clear();
     app.Urls.Add($"http://0.0.0.0:{port}");
 }
 
