@@ -10,8 +10,8 @@ namespace MotorStores.Infrastructure.Services
     {
         public bool status { get; set; }
         public int otp { get; set; }
-        public string email { get; set; }
-        public string username { get; set; }
+        public string email { get; set; } = string.Empty;
+        public string username { get; set; } = string.Empty;
     }
 
     public class EmailService
@@ -23,22 +23,44 @@ namespace MotorStores.Infrastructure.Services
             _cfg = cfg;
         }
 
-        public async Task<EmailResult> SendEmailAsync(string to, string subject, string body, int otp, string confirmedUserName)
+        public async Task<EmailResult> SendEmailAsync(
+            string to,
+            string subject,
+            string body,
+            int otp,
+            string confirmedUserName)
         {
-            var result = new EmailResult();
+            var result = new EmailResult
+            {
+                otp = otp,
+                email = to ?? string.Empty,
+                username = confirmedUserName ?? string.Empty
+            };
+
+            // ✅ HARD GUARD — prevents Railway crash
+            if (string.IsNullOrWhiteSpace(to))
+            {
+                result.status = false;
+                return result;
+            }
 
             try
             {
                 var from = _cfg["Email:From"] ?? "no-reply@motorstores.com";
                 var host = _cfg["Email:SmtpHost"] ?? "smtp.yourserver.com";
-                var port = int.Parse(_cfg["Email:SmtpPort"] ?? "587");
+                var port = int.TryParse(_cfg["Email:SmtpPort"], out var p) ? p : 587;
                 var user = _cfg["Email:User"];
                 var pass = _cfg["Email:Password"];
 
-                using var mail = new MailMessage(from, to, subject, body)
+                using var mail = new MailMessage
                 {
+                    From = new MailAddress(from),
+                    Subject = subject,
+                    Body = body,
                     IsBodyHtml = true
                 };
+
+                mail.To.Add(to);
 
                 using var smtp = new SmtpClient(host, port)
                 {
@@ -49,17 +71,13 @@ namespace MotorStores.Infrastructure.Services
                 await smtp.SendMailAsync(mail);
 
                 result.status = true;
-                result.otp = otp;
-                result.email = to;
-                result.username = confirmedUserName;
             }
-            
-            catch (Exception ex)
+            catch
             {
+                // ❌ DO NOT rethrow
+                // ❌ DO NOT call ex.ToString()
+                // ✅ Just return failed result safely
                 result.status = false;
-                result.otp = otp;
-                 result.email = to;
-                result.username = confirmedUserName;
             }
 
             return result;
