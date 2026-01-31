@@ -25,7 +25,7 @@ try
     var jwtKey = Environment.GetEnvironmentVariable("Jwt__Key") ?? cfg["Jwt:Key"];
     var jwtIssuer = Environment.GetEnvironmentVariable("Jwt__Issuer") ?? cfg["Jwt:Issuer"];
     var jwtAudience = Environment.GetEnvironmentVariable("Jwt__Audience") ?? cfg["Jwt:Audience"];
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";  // ✅ Changed from 5000 to 8080
 
     Console.WriteLine($"✅ Connection String: {(!string.IsNullOrEmpty(connectionString) ? "SET" : "MISSING")}");
     Console.WriteLine($"✅ JWT Key: {(!string.IsNullOrEmpty(jwtKey) ? "SET" : "MISSING")}");
@@ -151,7 +151,7 @@ try
     /* =========================
        PORT HANDLING (Railway)
     ========================= */
-    app.Urls.Clear(); // Clear default URLs
+    app.Urls.Clear(); // ✅ Clear default URLs
     app.Urls.Add($"http://0.0.0.0:{port}");
 
     Console.WriteLine($"🚀 Starting server on http://0.0.0.0:{port}");
