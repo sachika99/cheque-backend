@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using MotorStores.Application;
 using MotorStores.Infrastructure;
 using MotorStores.Infrastructure.Entities;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
@@ -22,8 +22,6 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
 
-//builder.Services.AddScoped<EmailService>();
-
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
 
@@ -36,23 +34,31 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+/* =========================
+   AUTH / JWT
+========================= */
+
 builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", opt =>
+.AddJwtBearer("Bearer", opt =>
+{
+    opt.TokenValidationParameters = new TokenValidationParameters
     {
-        opt.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
-            ValidateLifetime = false,
-            ValidIssuer = cfg["Jwt:Issuer"],
-            ValidAudience = cfg["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!)
-            ),
-            ClockSkew = TimeSpan.Zero
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = false,
+        ValidIssuer = cfg["Jwt:Issuer"],
+        ValidAudience = cfg["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!)
+        ),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+/* =========================
+   CORS
+========================= */
 
 builder.Services.AddCors(opt =>
 {
@@ -79,7 +85,6 @@ var app = builder.Build();
    SWAGGER
 ========================= */
 
-// ✅ Swagger ALWAYS enabled (local + Railway)
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -89,7 +94,6 @@ app.UseSwaggerUI();
 
 app.UseCors("frontend");
 
-// HTTPS only locally (Railway already has HTTPS)
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -101,10 +105,9 @@ app.UseAuthorization();
 app.MapControllers();
 
 /* =========================
-   PORT HANDLING
+   RAILWAY PORT FIX
 ========================= */
 
-// ✅ Only bind PORT when running on Railway
 if (!app.Environment.IsDevelopment())
 {
     var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
