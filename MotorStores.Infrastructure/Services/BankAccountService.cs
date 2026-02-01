@@ -184,7 +184,6 @@ namespace MotorStores.Infrastructure.Services
 
             // Deactivate all other accounts of the same bank
             var accountsInBank = await _context.BankAccounts
-                .Where(a => a.BankId == account.BankId)
                 .ToListAsync();
 
             foreach (var acc in accountsInBank)
