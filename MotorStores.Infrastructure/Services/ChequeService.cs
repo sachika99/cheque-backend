@@ -379,6 +379,80 @@ namespace MotorStores.Infrastructure.Services
             return MapToReportDto(cheque);
         }
 
+        public async Task<IEnumerable<ChequeStatusSummaryDto>> GetStatusSummaryByBankAccountAsync(int bankAccountId)
+        {
+            var summary = await _context.Cheques
+                .Where(c => c.BankAccountId == bankAccountId)
+                .GroupBy(c => c.Status)
+                .Select(g => new ChequeStatusSummaryDto
+                {
+                    Status = g.Key.ToString(),
+                    Count = g.Count(),
+                    TotalAmount = g.Sum(c => c.ChequeAmount)
+                })
+                .ToListAsync();
+
+            return summary;
+        }
+
+        public async Task<IEnumerable<ChequeStatusSummaryDto>> GetStatusSummaryByBankAccountTimeAsync(int bankAccountId, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.Cheques
+                .Where(c => c.BankAccountId == bankAccountId);
+
+            // Apply date filters if provided
+            if (startDate.HasValue)
+            {
+                query = query.Where(c => c.ChequeDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(c => c.ChequeDate <= endDate.Value);
+            }
+
+            var summary = await query
+                .GroupBy(c => c.Status)
+                .Select(g => new ChequeStatusSummaryDto
+                {
+                    Status = g.Key.ToString(),
+                    Count = g.Count(),
+                    TotalAmount = g.Sum(c => c.ChequeAmount)
+                })
+                .ToListAsync();
+
+            return summary;
+        }
+        public async Task DeleteChequeAsync(int chequeId)
+        {
+            var cheque = await _context.Cheques
+                .Include(c => c.Invoices)
+                .FirstOrDefaultAsync(c => c.Id == chequeId);
+
+            if (cheque == null)
+                throw new InvalidOperationException($"Cheque with ID {chequeId} not found.");
+
+            // 1️⃣ Delete related invoices first
+            if (cheque.Invoices.Any())
+            {
+                _context.Invoices.RemoveRange(cheque.Invoices);
+            }
+
+            // 2️⃣ Optional: delete cheque history
+            var histories = await _context.ChequeHistories
+                .Where(h => h.ChequeId == cheque.Id)
+                .ToListAsync();
+
+            if (histories.Any())
+            {
+                _context.ChequeHistories.RemoveRange(histories);
+            }
+
+            // 3️⃣ Delete cheque
+            _context.Cheques.Remove(cheque);
+
+            await _context.SaveChangesAsync();
+        }
 
         private async Task<ChequeDto> MapToDto(Cheque cheque)
         {

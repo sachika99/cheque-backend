@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using MotorStores.Application.DTOs;
 using MotorStores.Application.Interfaces;
 using MotorStores.Domain.Entities;
@@ -129,7 +129,6 @@ namespace MotorStores.Infrastructure.Services
 
             await _context.SaveChangesAsync();
 
-            // Reload bank if changed
             await _context.Entry(account).Reference(a => a.Bank).LoadAsync();
 
             return MapToDto(account);
@@ -145,18 +144,22 @@ namespace MotorStores.Infrastructure.Services
             if (account == null)
                 return false;
 
-            // Prevent deletion if account has associated cheque books or cheques
-            if (account.ChequeBooks.Any())
-                throw new InvalidOperationException("Cannot delete bank account with associated cheque books.");
-
             if (account.Cheques.Any())
-                throw new InvalidOperationException("Cannot delete bank account with associated cheques.");
+                throw new InvalidOperationException(
+                    "Cannot delete bank account because cheques are linked to this account."
+                );
+
+            if (account.ChequeBooks.Any())
+            {
+                _context.ChequeBooks.RemoveRange(account.ChequeBooks);
+            }
 
             _context.BankAccounts.Remove(account);
-            await _context.SaveChangesAsync();
 
+            await _context.SaveChangesAsync();
             return true;
         }
+
 
         private BankAccountDto MapToDto(BankAccount account)
         {

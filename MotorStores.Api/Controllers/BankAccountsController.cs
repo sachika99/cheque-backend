@@ -87,7 +87,6 @@ namespace MotorStores.Api.Controllers
             }
         }
 
-        // Delete a bank account
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

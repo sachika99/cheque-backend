@@ -77,5 +77,11 @@ namespace MotorStores.Application.DTOs
         public string Status { get; set; }
         public List<InvoiceDto> Invoices { get; set; } = new();
     }
+    public class ChequeStatusSummaryDto
+    {
+        public string Status { get; set; } = null!;
+        public int Count { get; set; }
+        public decimal TotalAmount { get; set; }
+    }
 
 }

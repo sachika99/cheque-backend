@@ -174,9 +174,40 @@ namespace MotorStores.Api.Controllers
             }
         }
 
+        [HttpGet("summary/bank-account/{bankAccountId}")]
+        [ProducesResponseType(typeof(IEnumerable<ChequeStatusSummaryDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeStatusSummaryDto>>> GetStatusSummaryByBankAccount(int bankAccountId)
+        {
+            var summary = await _chequeService.GetStatusSummaryByBankAccountAsync(bankAccountId);
+            return Ok(summary);
+        }
+        [HttpGet("summary/bank-account/time/{bankAccountId}")]
+        [ProducesResponseType(typeof(IEnumerable<ChequeStatusSummaryDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<ChequeStatusSummaryDto>>> GetStatusSummaryByBankAccountTime(
+           int bankAccountId,
+           [FromQuery] DateTime? startDate = null,
+           [FromQuery] DateTime? endDate = null)
+        {
+            var summary = await _chequeService.GetStatusSummaryByBankAccountTimeAsync(bankAccountId, startDate, endDate);
+            return Ok(summary);
+        }
+        // Delete cheque (and its invoices)
+        [HttpDelete("{chequeId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteCheque(int chequeId)
+        {
+            try
+            {
+                await _chequeService.DeleteChequeAsync(chequeId);
+                return Ok(new { message = "Cheque deleted successfully" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
     }
-
-    // Request model for updating cheque status
     public class UpdateChequeStatusRequest
     {
         public string NewStatus { get; set; } = null!;

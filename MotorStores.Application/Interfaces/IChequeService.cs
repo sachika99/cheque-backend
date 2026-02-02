@@ -18,6 +18,10 @@ namespace MotorStores.Application.Interfaces
         Task<IEnumerable<ChequeReportDto>> GetAllChequesAsync(string? search = null);
         Task MarkAsVerifiedAsync(string chequeId);
         Task UpdateChequeAsync(string chequeId, UpdateChequeRequest request);
+        Task<IEnumerable<ChequeStatusSummaryDto>> GetStatusSummaryByBankAccountAsync(int bankAccountId);
+        Task<IEnumerable<ChequeStatusSummaryDto>> GetStatusSummaryByBankAccountTimeAsync(int bankAccountId, DateTime? startDate = null, DateTime? endDate = null);
+        Task DeleteChequeAsync(int chequeId);
+
 
     }
 }
