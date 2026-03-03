@@ -5,5 +5,5 @@ namespace MotorStores.Domain.Enums
     public enum BankStatus { Active, Inactive }
     public enum AccountStatus { Active, Closed, Inactive }
     public enum ChequeBookStatus { Active, Completed, Cancelled }
-    public enum ChequeStatus { Pending, Issued, Cleared, Cancelled, Returned }
+    public enum ChequeStatus { Pending, Issued, Cleared, Cancelled, Returned,Bounced }
 }

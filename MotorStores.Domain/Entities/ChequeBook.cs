@@ -9,7 +9,7 @@ namespace MotorStores.Domain.Entities
         public string ChequeBookNo { get; set; } = null!;
         public int StartChequeNo { get; set; }
         public int EndChequeNo { get; set; }
-        public int CurrentChequeNo { get; set; }
+        public string CurrentChequeNo { get; set; }
         public ChequeBookStatus Status { get; set; } = ChequeBookStatus.Active;
         public DateTime IssuedDate { get; set; }
 

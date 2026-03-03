@@ -1,77 +1,98 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// Controllers/InvoicesController.cs
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MotorStores.Application.DTOs;
-using MotorStores.Application.Interfaces;
+using MotorStores.Application.Features.Invoices.Commands;
+using MotorStores.Application.Features.Invoices.Queries;
 
-namespace MotorStores.Api.Controllers
+namespace MotorStores.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
+[Authorize]
+public class InvoicesController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Produces("application/json")]
-    public class InvoicesController : ControllerBase
+    private readonly IMediator _mediator;
+
+    public InvoicesController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<InvoiceDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<InvoiceDto>>> GetAll()
     {
-        private readonly IInvoiceService _invoiceService;
-
-        public InvoicesController(IInvoiceService invoiceService)
+        try
         {
-            _invoiceService = invoiceService;
+            return Ok(await _mediator.Send(new GetAllInvoicesQuery()));
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Get all invoices
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<InvoiceDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<InvoiceDto>>> GetAll()
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<InvoiceDto>> GetById(int id)
+    {
+        try
         {
-            var invoices = await _invoiceService.GetAllAsync();
-            return Ok(invoices);
+            var invoice = await _mediator.Send(new GetInvoiceByIdQuery { Id = id });
+            return invoice == null
+                ? NotFound(new { message = $"Invoice with ID {id} not found." })
+                : Ok(invoice);
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Get invoice by ID
-        [HttpGet("{id}")]
-        [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<InvoiceDto>> GetById(int id)
+    [HttpPost]
+    [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<InvoiceDto>> Create([FromBody] InvoiceDto dto)
+    {
+        try
         {
-            var invoice = await _invoiceService.GetByIdAsync(id);
-
-            if (invoice == null)
-                return NotFound($"Invoice with ID {id} not found.");
-
-            return Ok(invoice);
-        }
-
-        // Create invoice
-        [HttpPost]
-        [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<InvoiceDto>> Create([FromBody] InvoiceDto dto)
-        {
-            var invoice = await _invoiceService.CreateAsync(dto);
+            var invoice = await _mediator.Send(new CreateInvoiceCommand { Invoice = dto });
             return CreatedAtAction(nameof(GetById), new { id = invoice.Id }, invoice);
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Update invoice
-        [HttpPut("{id}")]
-        [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
-        public async Task<ActionResult<InvoiceDto>> Update(int id, [FromBody] InvoiceDto dto)
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<InvoiceDto>> Update(int id, [FromBody] InvoiceDto dto)
+    {
+        if (id != dto.Id)
+            return BadRequest(new { message = "ID mismatch." });
+
+        try
         {
-            if (id != dto.Id)
-                return BadRequest("ID mismatch.");
-
-            var updated = await _invoiceService.UpdateAsync(dto);
+            var updated = await _mediator.Send(new UpdateInvoiceCommand { Invoice = dto });
             return Ok(updated);
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return NotFound(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Delete invoice
-        [HttpDelete("{id}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> Delete(int id)
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
         {
-            var deleted = await _invoiceService.DeleteAsync(id);
-
-            if (!deleted)
-                return NotFound($"Invoice with ID {id} not found.");
-
-            return NoContent();
+            var deleted = await _mediator.Send(new DeleteInvoiceCommand { Id = id });
+            return deleted
+                ? NoContent()
+                : NotFound(new { message = $"Invoice with ID {id} not found." });
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
     }
 }

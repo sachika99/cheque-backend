@@ -9,10 +9,12 @@ namespace MotorStores.Application.Features.Vendors.Commands;
 public class CreateVendorCommandHandler : IRequestHandler<CreateVendorCommand, VendorDto>
 {
     private readonly IVendorRepository _vendorRepository;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateVendorCommandHandler(IVendorRepository vendorRepository)
+    public CreateVendorCommandHandler(IVendorRepository vendorRepository, ICurrentUserService currentUser)
     {
         _vendorRepository = vendorRepository;
+        _currentUser = currentUser;
     }
 
     public async Task<VendorDto> Handle(CreateVendorCommand request, CancellationToken cancellationToken)
@@ -33,7 +35,7 @@ public class CreateVendorCommandHandler : IRequestHandler<CreateVendorCommand, V
 
         var vendor = new Vendor
         {
-            VendorCode = vendorCode,
+            VendorCode = request.Vendor.VendorCode,
             VendorName = request.Vendor.VendorName,
             VendorAddress = request.Vendor.VendorAddress,
             VendorPhoneNo = request.Vendor.VendorPhoneNo,
@@ -44,6 +46,7 @@ public class CreateVendorCommandHandler : IRequestHandler<CreateVendorCommand, V
             Notes = request.Vendor.Notes,
             ContactPerson = request.Vendor.ContactPerson,
             Status = Domain.Enums.VendorStatus.Active,
+            UserId = _currentUser.UserId,
             CreatedAt = DateTime.UtcNow
         };
 

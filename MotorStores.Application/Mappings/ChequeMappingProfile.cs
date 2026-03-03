@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using MediatR;
 using MotorStores.Application.DTOs;
 using MotorStores.Domain.Entities;
 using MotorStores.Domain.Enums;
@@ -43,51 +44,47 @@ public class ChequeMappingProfile : Profile
     //    };
     //}
 }
- 
+
 public static class ChequeMapper
 {
-    private static readonly IMapper _mapper;
+    public static ChequeDto ToDto(Cheque cheque)
+    {
+        return new ChequeDto
+        {
+            Id = cheque.Id,
+            ChequeId = cheque.ChequeId,
+            VendorId = cheque.VendorId,
+            ChequeBookId = cheque.ChequeBookId,
+            BankAccountId = cheque.BankAccountId,
+            InvoiceNo = cheque.InvoiceNo,
+            InvoiceDate = cheque.InvoiceDate,
+            InvoiceAmount = cheque.InvoiceAmount,
+            ReceiptNo = cheque.ReceiptNo,
+            ChequeNo = cheque.ChequeNo,
+            ChequeDate = cheque.ChequeDate,
+            DueDate = cheque.DueDate,
+            ChequeAmount = cheque.ChequeAmount,
+            PayeeName = cheque.PayeeName,
+            Status = cheque.Status,
+            IsVerified = cheque.IsVerified,
+            CreatedAt = cheque.CreatedAt,
+            Invoices = cheque.Invoices.Select(i => new InvoiceDto
+            {
+                Id = i.Id,
+                InvoiceNo = i.InvoiceNo,
+                InvoiceAmount = i.InvoiceAmount
+            }).ToList()
+        };
+    }
 
-    //static ChequeMapper()
-    //{
-    //    var config = new MapperConfiguration(cfg =>
-    //    {
-    //        cfg.AddProfile<VendorMappingProfile>();
-    //    });
-    //    _mapper = config.CreateMapper();
-    //}
-
-    //public static VendorDto ToDto(Vendor vendor)
-    //{
-    //    return new VendorDto
-    //    {
-    //        Id = vendor.Id,
-    //        VendorCode = vendor.VendorCode,
-    //        VendorName = vendor.VendorName,
-    //        VendorAddress = vendor.VendorAddress,
-    //        VendorPhoneNo = vendor.VendorPhoneNo,
-    //        VendorEmail = vendor.VendorEmail,
-    //        BankName = vendor.BankName,
-    //        AccountNumber = vendor.AccountNumber,
-    //        CrediPeriodDays = vendor.CrediPeriodDays,
-    //        Status = vendor.Status,
-    //        Notes = vendor.Notes,
-    //        ContactPerson = vendor.ContactPerson,
-    //        CreatedAt = vendor.CreatedAt,
-    //        UpdatedAt = vendor.UpdatedAt,
-    //        CreatedBy = vendor.CreatedBy,
-    //        UpdatedBy = vendor.UpdatedBy,
-    //        CanReceivePayments = vendor.CanReceivePayments()
-    //    };
-    //}
     public static ChequeDto MapToDto(Cheque cheque)
     {
         return new ChequeDto
         {
-             Id = cheque.Id,
+            Id = cheque.Id,
             ChequeId = cheque.ChequeId,
-            SupplierId = cheque.VendorId,
-            SupplierName = cheque.Vendor?.VendorName ?? "Unknown",
+            VendorId = cheque.VendorId,
+            VendorName = cheque.Vendor?.VendorName ?? "Unknown",
             BankAccountId = cheque.BankAccountId,
             AccountNo = cheque.BankAccount?.AccountNo ?? "Unknown",
             ChequeBookId = cheque.ChequeBookId,
@@ -98,11 +95,9 @@ public static class ChequeMapper
             ChequeAmount = cheque.ChequeAmount,
             ReceiptNo = cheque.ReceiptNo,
             PayeeName = cheque.PayeeName,
-            Status = cheque.Status.ToString(),
+            Status = cheque.Status,
             IsVerified = cheque.IsVerified,
             IsOverdue = cheque.IsOverdue,
-
-            // ✅ Invoices
             Invoices = cheque.Invoices.Select(i => new InvoiceDto
             {
                 Id = i.Id,
@@ -111,14 +106,15 @@ public static class ChequeMapper
             }).ToList()
         };
     }
-    public static  ChequeDto MapToReportDto(Cheque cheque)
+
+    public static ChequeReportDto MapToReportDto(Cheque cheque)
     {
-        return new ChequeDto
+        return new ChequeReportDto
         {
             Id = cheque.Id,
             ChequeId = cheque.ChequeId,
-            SupplierId = cheque.VendorId,
-            SupplierName = cheque.Vendor?.VendorName ?? "Unknown",
+            VendorId = cheque.VendorId,
+            VendorName = cheque.Vendor?.VendorName ?? "Unknown",
             BankAccountId = cheque.BankAccountId,
             AccountNo = cheque.BankAccount?.AccountNo ?? "Unknown",
             ChequeBookId = cheque.ChequeBookId,
@@ -131,41 +127,15 @@ public static class ChequeMapper
             ChequeAmount = cheque.ChequeAmount,
             ReceiptNo = cheque.ReceiptNo,
             PayeeName = cheque.PayeeName,
-            Status = cheque.Status.ToString(),
+            Status = cheque.Status.ToString(), // ✅ ChequeReportDto uses string, not enum
             IsVerified = cheque.IsVerified,
             IsOverdue = cheque.IsOverdue,
-             Invoices = cheque.Invoices.Select(i => new InvoiceDto
-             {
-                 Id = i.Id,
-                 InvoiceNo = i.InvoiceNo,
-                 InvoiceAmount = i.InvoiceAmount
-             }).ToList()
+            Invoices = cheque.Invoices.Select(i => new InvoiceDto
+            {
+                Id = i.Id,
+                InvoiceNo = i.InvoiceNo,
+                InvoiceAmount = i.InvoiceAmount
+            }).ToList()
         };
     }
-    //public static VendorListDto ToListDto(Vendor vendor)
-    //{
-    //    return new VendorListDto
-    //    {
-    //        Id = vendor.Id,
-    //        VendorCode = vendor.VendorCode,
-    //        VendorName = vendor.VendorName,
-    //        VendorPhoneNo = vendor.VendorPhoneNo,
-    //        VendorEmail = vendor.VendorEmail,
-    //        Status = vendor.Status,
-    //        StatusDisplayName = GetStatusDisplayName(vendor.Status),
-    //        CanReceivePayments = vendor.CanReceivePayments()
-    //    };
-    //}
-
-    //private static string GetStatusDisplayName(VendorStatus status)
-    //{
-    //    return status switch
-    //    {
-    //        VendorStatus.Active => "Active",
-    //        VendorStatus.Inactive => "Inactive",
-    //        VendorStatus.Suspended => "Suspended",
-    //        VendorStatus.Blacklisted => "Blacklisted",
-    //        _ => "Unknown"
-    //    };
-    //}
 }

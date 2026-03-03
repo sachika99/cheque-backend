@@ -1,17 +1,16 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using MotorStores.Domain.Entities;    
-using MotorStores.Infrastructure.Entities; 
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using MotorStores.Domain.Entities;
+using MotorStores.Infrastructure.Entities;
 using System;
-using System.IO;
 
 namespace MotorStores.Infrastructure.Persistence
 {
-
     public class ApplicationDbContext : IdentityDbContext<AppUser>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
         {
         }
 
@@ -22,41 +21,43 @@ namespace MotorStores.Infrastructure.Persistence
         public DbSet<Cheque> Cheques => Set<Cheque>();
         public DbSet<ChequeHistory> ChequeHistories => Set<ChequeHistory>();
         public DbSet<Invoice> Invoices => Set<Invoice>();
-
-
+        public DbSet<UserId> UserIds => Set<UserId>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-         
+
+            var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
+                v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+            );
+
+            var nullableDateTimeConverter = new ValueConverter<DateTime?, DateTime?>(
+                v => v.HasValue
+                    ? (v.Value.Kind == DateTimeKind.Utc ? v.Value : v.Value.ToUniversalTime())
+                    : v,
+                v => v.HasValue
+                    ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)
+                    : v
+            );
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime))
+                    {
+                        property.SetValueConverter(dateTimeConverter);
+                    }
+
+                    if (property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(nullableDateTimeConverter);
+                    }
+                }
+            }
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    { 
-        if (!optionsBuilder.IsConfigured)
-        { 
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../MotorStores.Api"))
-                .AddJsonFile("appsettings.json", optional: false)
-                .AddJsonFile("appsettings.Development.json", optional: true)
-                .Build();
-            
-            var connectionString = configuration.GetConnectionString("DefaultConnection");
-            
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new InvalidOperationException("Connection string 'DefaultConnection' not found in appsettings.json");
-            }
-            
-            optionsBuilder.UseSqlServer(
-                connectionString,
-                sqlOptions => sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
-                    errorNumbersToAdd: null)
-            );
-        }
-    }
     }
 }

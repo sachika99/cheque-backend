@@ -1,32 +1,36 @@
+// Features/Cheques/Queries/ChequeQueries.cs
 using MediatR;
 using MotorStores.Application.DTOs;
 
-namespace MotorStores.Application.Features.Vendors.Queries;
+namespace MotorStores.Application.Features.Cheques.Queries;
 
-//public record GetVendorByIdQuery : IRequest<VendorDto?>
-//{
-//    public int Id { get; init; }
-//}
+public record GetAllChequesQuery : IRequest<IEnumerable<ChequeDto>> { }
 
-//public record GetVendorByCodeQuery : IRequest<VendorDto?>
-//{
-//    public string VendorCode { get; init; } = string.Empty;
-//}
-
-public record GetAllChequesQuery : IRequest<IEnumerable<ChequeDto>>
+public record GetChequeByIdQuery : IRequest<ChequeReportDto?>
 {
+    public string Id { get; init; } = null!;
 }
 
-public record GetAllChequesQueryById : IRequest<ChequeDto>
+public record GetDueThisMonthQuery : IRequest<IEnumerable<ChequeReportDto>> { }
+
+public record GetOverdueChequesQuery : IRequest<IEnumerable<ChequeReportDto>> { }
+
+public record GetClearedChequesQuery : IRequest<IEnumerable<ChequeReportDto>> { }
+
+public record GetStatusSummaryByBankAccountQuery : IRequest<IEnumerable<ChequeStatusSummaryDto>>
 {
-    public int Id { get; init; }
+    public int BankAccountId { get; init; }
 }
 
-//public record GetActiveVendorsQuery : IRequest<IEnumerable<VendorListDto>>
-//{
-//}
-
-//public record SearchVendorsQuery : IRequest<PaginatedVendorResponse>
-//{
-//    public VendorSearchDto SearchCriteria { get; init; } = null!;
-//}
+public record GetStatusSummaryByBankAccountTimeQuery : IRequest<IEnumerable<ChequeStatusSummaryDto>>
+{
+    public int BankAccountId { get; init; }
+    public DateTime? StartDate { get; init; }
+    public DateTime? EndDate { get; init; }
+}
+public record GetCurrentMonthTotalByAccountQuery : IRequest<decimal>
+{
+    public int BankAccountId { get; init; }
+    public DateTime? StartDate { get; init; }
+    public DateTime? EndDate { get; init; }
+}
