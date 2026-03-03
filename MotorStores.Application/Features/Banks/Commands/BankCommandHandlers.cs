@@ -108,7 +108,7 @@ public class CreateBankWithAccountsCommandHandler : IRequestHandler<CreateBankWi
                     AccountName = acc.AccountName,
                     AccountType = acc.AccountType,
                     Balance = acc.Balance,
-                    Status = Enum.Parse<AccountStatus>(acc.Status), // ✅ Fixed: use acc.Status not dto.Status
+                    Status = Enum.Parse<AccountStatus>(acc.Status),
                     UserId = _currentUser.UserId,
                     CreatedAt = DateTime.UtcNow,
                 };
@@ -116,7 +116,6 @@ public class CreateBankWithAccountsCommandHandler : IRequestHandler<CreateBankWi
                 savedAccount = await _bankAccountRepository.AddAsync(account, cancellationToken);
             }
 
-            // ✅ Guard in case BankAccounts list was empty
             if (savedAccount is not null)
             {
                 await _chequeBookRepository.AddAsync(new ChequeBook
