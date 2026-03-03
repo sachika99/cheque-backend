@@ -55,7 +55,7 @@ namespace MotorStores.Infrastructure.Persistence.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Unique cheque number within a bank account
-            b.HasIndex(x => new { x.BankAccountId, x.ChequeNo }).IsUnique();
+            b.HasIndex(x => new { x.BankAccountId, x.ChequeNo, x.UserId }).IsUnique();
 
             // Fast filters / reporting
             b.HasIndex(x => x.DueDate);

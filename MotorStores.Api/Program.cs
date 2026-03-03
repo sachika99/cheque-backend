@@ -1,66 +1,126 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Microsoft.OpenApi.Models;
 using MotorStores.Application;
+using MotorStores.Application.Interfaces;
 using MotorStores.Infrastructure;
 using MotorStores.Infrastructure.Entities;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
 
-/* =========================
+/* =====================================================
    SERVICES
-========================= */
+===================================================== */
 
-builder.Services.AddControllers();
+// Controllers
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters
+            .Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter JWT token: Bearer {your token}"
+    });
 
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// Application + Infrastructure Layers
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(cfg);
 
-builder.Services.AddScoped<EmailService>();
+// Database (PostgreSQL)
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(cfg.GetConnectionString("DefaultConnection"))
+);
 
-builder.Services.AddDbContext<ApplicationDbContext>(opt =>
-    opt.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddIdentity<AppUser, IdentityRole>(opt =>
+// Identity
+builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
-    opt.Password.RequireNonAlphanumeric = false;
-    opt.Password.RequiredLength = 8;
-    opt.Lockout.MaxFailedAccessAttempts = 5;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 8;
+    options.Lockout.MaxFailedAccessAttempts = 5;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", opt =>
+// JWT Authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        opt.TokenValidationParameters = new TokenValidationParameters
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = false,
+        ValidIssuer = cfg["Jwt:Issuer"],
+        ValidAudience = cfg["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!)
+        ),
+        ClockSkew = TimeSpan.Zero
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
-            ValidateLifetime = false,
+            context.HandleResponse();
+            context.Response.StatusCode = 401;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(
+                "{\"message\":\"Unauthorized. Please login.\"}"
+            );
+        },
+        OnForbidden = async context =>
+        {
+            context.Response.StatusCode = 403;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(
+                "{\"message\":\"Forbidden. You do not have access.\"}"
+            );
+        }
+    };
+});
 
-            ValidIssuer = cfg["Jwt:Issuer"],
-            ValidAudience = cfg["Jwt:Audience"],
-
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(cfg["Jwt:Key"]!)
-            ),
-
-            ClockSkew = TimeSpan.Zero
-        };
-    });
-
-/* =========================
-   OPEN CORS (ANY FRONTEND)
-========================= */
-
+// CORS (Open for any frontend like React/Vercel)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("OpenCors", policy =>
@@ -72,15 +132,23 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Additional Services
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<EmailService>();
+
+// SignalR
 builder.Services.AddSignalR();
 
-/* =========================
+
+/* =====================================================
    APP PIPELINE
-========================= */
+===================================================== */
 
 var app = builder.Build();
 
+// Swagger only in Development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -89,10 +157,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("OpenCors");   // ✅ OPEN TO ALL FRONTENDS
+app.UseCors("OpenCors");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();

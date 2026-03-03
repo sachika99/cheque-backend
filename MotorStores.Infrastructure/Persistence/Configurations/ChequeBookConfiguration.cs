@@ -12,11 +12,11 @@ namespace MotorStores.Infrastructure.Persistence.Configurations
             b.HasKey(x => x.Id);
 
             b.Property(x => x.ChequeBookNo).HasMaxLength(50).IsRequired();
-            b.Property(x => x.StartChequeNo).IsRequired();
-            b.Property(x => x.EndChequeNo).IsRequired();
-            b.Property(x => x.CurrentChequeNo).IsRequired();
+            b.Property(x => x.StartChequeNo);
+            b.Property(x => x.EndChequeNo);
+            b.Property(x => x.CurrentChequeNo);
 
-            b.Property(x => x.IssuedDate).IsRequired();
+            b.Property(x => x.IssuedDate);
 
             b.Property(x => x.Status)
                 .HasConversion<string>()
@@ -24,7 +24,7 @@ namespace MotorStores.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             // Unique cheque book per bank account
-            b.HasIndex(x => new { x.BankAccountId, x.ChequeBookNo }).IsUnique();
+            b.HasIndex(x => new { x.BankAccountId, x.ChequeBookNo, x.UserId }).IsUnique();
         }
     }
 }

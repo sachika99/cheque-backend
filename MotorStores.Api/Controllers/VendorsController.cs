@@ -10,7 +10,7 @@ namespace MotorStores.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-// [Authorize]
+ [Authorize]
 public class VendorsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -45,19 +45,6 @@ public class VendorsController : ControllerBase
         if (vendor == null)
         {
             return NotFound($"Vendor with ID {id} not found.");
-        }
-        return Ok(vendor);
-    }
-
-    [HttpGet("code/{vendorCode}")]
-    [ProducesResponseType(typeof(VendorDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<VendorDto>> GetVendorByCode(string vendorCode)
-    {
-        var vendor = await _mediator.Send(new GetVendorByCodeQuery { VendorCode = vendorCode });
-        if (vendor == null)
-        {
-            return NotFound($"Vendor with code '{vendorCode}' not found.");
         }
         return Ok(vendor);
     }

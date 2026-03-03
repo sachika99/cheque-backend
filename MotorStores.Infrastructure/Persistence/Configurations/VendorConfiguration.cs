@@ -61,7 +61,7 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
  
         builder.Property(v => v.CreatedAt)
             .IsRequired()
-            .HasDefaultValueSql("GETUTCDATE()")
+            .HasDefaultValueSql("NOW()")
             .HasComment("Record creation timestamp");
 
         builder.Property(v => v.UpdatedAt)

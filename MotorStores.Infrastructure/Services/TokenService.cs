@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MotorStores.Application.DTOs;
 using MotorStores.Infrastructure.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -19,24 +20,29 @@ namespace MotorStores.Infrastructure.Services
             _userManager = um;
         }
 
-        public async Task<string> CreateAccessTokenAsync(AppUser user)
+        public async Task<string> CreateAccessTokenAsync(AppUser user, UserIdDto? userIdDto)
         {
-       
             var roles = await _userManager.GetRolesAsync(user);
+            var isAdmin = roles.Contains("admin");
 
-           
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub, user.Id),
+
                 new(ClaimTypes.NameIdentifier, user.Id),
-                new(ClaimTypes.Name, user.UserName ?? user.Email ?? user.Id)
+
+                new(ClaimTypes.Name, user.UserName ?? user.Email ?? user.Id),
+
+                new("createdBy", isAdmin ? user.Id : userIdDto?.CreatedBy ?? user.Id),
+
+                new("role", isAdmin ? "admin" : userIdDto?.Role ?? "user")
             };
+
             claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_cfg["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-      
             var jwt = new JwtSecurityToken(
                 issuer: _cfg["Jwt:Issuer"],
                 audience: _cfg["Jwt:Audience"],
@@ -44,7 +50,6 @@ namespace MotorStores.Infrastructure.Services
                 signingCredentials: creds
             );
 
-        
             return new JwtSecurityTokenHandler().WriteToken(jwt);
         }
     }

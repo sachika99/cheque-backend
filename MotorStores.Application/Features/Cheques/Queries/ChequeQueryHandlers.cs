@@ -1,140 +1,95 @@
+// Features/Cheques/Queries/ChequeQueryHandlers.cs
 using MediatR;
 using MotorStores.Application.DTOs;
+using MotorStores.Application.Features.UserIds.Queries;
 using MotorStores.Application.Interfaces;
 using MotorStores.Application.Mappings;
-using MotorStores.Domain.Entities;
-using MotorStores.Domain.Enums;
 
-namespace MotorStores.Application.Features.Vendors.Queries;
+namespace MotorStores.Application.Features.Cheques.Queries;
 
-//public class GetVendorByIdQueryHandler : IRequestHandler<GetVendorByIdQuery, VendorDto?>
-//{
-//    private readonly IVendorRepository _vendorRepository;
-
-//    public GetVendorByIdQueryHandler(IVendorRepository vendorRepository)
-//    {
-//        _vendorRepository = vendorRepository;
-//    }
-
-//    public async Task<VendorDto?> Handle(GetVendorByIdQuery request, CancellationToken cancellationToken)
-//    {
-//        var vendor = await _vendorRepository.GetByIdAsync(request.Id, cancellationToken);
-//        return vendor != null ? VendorMapper.ToDto(vendor) : null;
-//    }
-//}
-
-//public class GetVendorByCodeQueryHandler : IRequestHandler<GetVendorByCodeQuery, VendorDto?>
-//{
-//    private readonly IVendorRepository _vendorRepository;
-
-//    public GetVendorByCodeQueryHandler(IVendorRepository vendorRepository)
-//    {
-//        _vendorRepository = vendorRepository;
-//    }
-
-//    public async Task<VendorDto?> Handle(GetVendorByCodeQuery request, CancellationToken cancellationToken)
-//    {
-//        var vendor = await _vendorRepository.GetByVendorCodeAsync(request.VendorCode, cancellationToken);
-//        return vendor != null ? VendorMapper.ToDto(vendor) : null;
-//    }
-//}
-
-public class GetAllChequesQueryHandler
-    : IRequestHandler<GetAllChequesQuery, IEnumerable<ChequeDto>>
+public class GetAllChequesQueryHandler : IRequestHandler<GetAllChequesQuery, IEnumerable<ChequeDto>>
 {
     private readonly IChequeRepository _chequeRepository;
+    public GetAllChequesQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-    public GetAllChequesQueryHandler(IChequeRepository chequeRepository)
+    public async Task<IEnumerable<ChequeDto>> Handle(GetAllChequesQuery request, CancellationToken cancellationToken)
+        => (await _chequeRepository.GetAllAsync(cancellationToken)).Select(ChequeMapper.ToDto);
+}
+
+public class GetChequeByIdQueryHandler : IRequestHandler<GetChequeByIdQuery, ChequeReportDto?>
+{
+    private readonly IChequeRepository _chequeRepository;
+    public GetChequeByIdQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
+
+    public async Task<ChequeReportDto?> Handle(GetChequeByIdQuery request, CancellationToken cancellationToken)
     {
-        _chequeRepository = chequeRepository;
-    }
-
-    public async Task<IEnumerable<ChequeDto>> Handle(
-        GetAllChequesQuery request,
-        CancellationToken cancellationToken)
-    {
-        var cheques = await _chequeRepository.GetAllAsync(cancellationToken);
-
-        return cheques.Select(ChequeMapper.MapToDto);
+        var cheque = await _chequeRepository.GetByChequeIdWithDetailsAsync(request.Id, cancellationToken);
+        return cheque == null ? null : ChequeMapper.MapToReportDto(cheque);
     }
 }
 
-public class GetAllChequesQueryHandlerById : IRequestHandler<GetAllChequesQueryById, ChequeDto>
+public class GetDueThisMonthQueryHandler : IRequestHandler<GetDueThisMonthQuery, IEnumerable<ChequeReportDto>>
 {
     private readonly IChequeRepository _chequeRepository;
+    public GetDueThisMonthQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-    public GetAllChequesQueryHandlerById(IChequeRepository chequeRepository)
-    {
-        _chequeRepository = chequeRepository;
-    }
-
-    public async Task<ChequeDto> Handle(GetAllChequesQueryById request, CancellationToken cancellationToken)
-    {
-        var vendors = await _chequeRepository.GetByIdAsync(request.Id, cancellationToken);
-        return vendors != null ? ChequeMapper.MapToReportDto(vendors) : null;
-    }
+    public async Task<IEnumerable<ChequeReportDto>> Handle(GetDueThisMonthQuery request, CancellationToken cancellationToken)
+        => (await _chequeRepository.GetDueThisMonthAsync(cancellationToken)).Select(ChequeMapper.MapToReportDto);
 }
 
-//public class GetActiveVendorsQueryHandler : IRequestHandler<GetActiveVendorsQuery, IEnumerable<VendorListDto>>
-//{
-//    private readonly IVendorRepository _vendorRepository;
+public class GetOverdueChequesQueryHandler : IRequestHandler<GetOverdueChequesQuery, IEnumerable<ChequeReportDto>>
+{
+    private readonly IChequeRepository _chequeRepository;
+    public GetOverdueChequesQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-//    public GetActiveVendorsQueryHandler(IVendorRepository vendorRepository)
-//    {
-//        _vendorRepository = vendorRepository;
-//    }
+    public async Task<IEnumerable<ChequeReportDto>> Handle(GetOverdueChequesQuery request, CancellationToken cancellationToken)
+        => (await _chequeRepository.GetOverdueAsync(cancellationToken)).Select(ChequeMapper.MapToReportDto);
+}
 
-//    public async Task<IEnumerable<VendorListDto>> Handle(GetActiveVendorsQuery request, CancellationToken cancellationToken)
-//    {
-//        var vendors = await _vendorRepository.GetActiveVendorsAsync(cancellationToken);
-//        return vendors.Select(VendorMapper.ToListDto);
-//    }
-//}
+public class GetClearedChequesQueryHandler : IRequestHandler<GetClearedChequesQuery, IEnumerable<ChequeReportDto>>
+{
+    private readonly IChequeRepository _chequeRepository;
+    public GetClearedChequesQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-//public class SearchVendorsQueryHandler : IRequestHandler<SearchVendorsQuery, PaginatedVendorResponse>
-//{
-//    private readonly IVendorRepository _vendorRepository;
+    public async Task<IEnumerable<ChequeReportDto>> Handle(GetClearedChequesQuery request, CancellationToken cancellationToken)
+        => (await _chequeRepository.GetClearedAsync(cancellationToken)).Select(ChequeMapper.MapToReportDto);
+}
 
-//    public SearchVendorsQueryHandler(IVendorRepository vendorRepository)
-//    {
-//        _vendorRepository = vendorRepository;
-//    }
+public class GetStatusSummaryByBankAccountQueryHandler
+    : IRequestHandler<GetStatusSummaryByBankAccountQuery, IEnumerable<ChequeStatusSummaryDto>>
+{
+    private readonly IChequeRepository _chequeRepository;
+    public GetStatusSummaryByBankAccountQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-//    public async Task<PaginatedVendorResponse> Handle(SearchVendorsQuery request, CancellationToken cancellationToken)
-//    {
-//        IEnumerable<Domain.Entities.Vendor> vendors;
+    public async Task<IEnumerable<ChequeStatusSummaryDto>> Handle(GetStatusSummaryByBankAccountQuery request, CancellationToken cancellationToken)
+        => await _chequeRepository.GetStatusSummaryByBankAccountAsync(request.BankAccountId, cancellationToken);
+}
 
-//        if (!string.IsNullOrEmpty(request.SearchCriteria.SearchTerm))
-//        {
-//            vendors = await _vendorRepository.SearchByNameAsync(request.SearchCriteria.SearchTerm, cancellationToken);
-//        }
-//        else
-//        {
-//            vendors = await _vendorRepository.GetAllAsync(cancellationToken);
-//        }
+public class GetStatusSummaryByBankAccountTimeQueryHandler
+    : IRequestHandler<GetStatusSummaryByBankAccountTimeQuery, IEnumerable<ChequeStatusSummaryDto>>
+{
+    private readonly IChequeRepository _chequeRepository;
+    public GetStatusSummaryByBankAccountTimeQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-//        if (request.SearchCriteria.Status.HasValue)
-//        {
-//            vendors = vendors.Where(v => v.Status == request.SearchCriteria.Status.Value);
-//        }
+    public async Task<IEnumerable<ChequeStatusSummaryDto>> Handle(GetStatusSummaryByBankAccountTimeQuery request, CancellationToken cancellationToken)
+        => await _chequeRepository.GetStatusSummaryByBankAccountTimeAsync(request.BankAccountId, request.StartDate, request.EndDate, cancellationToken);
+}
+public class GetCurrentMonthTotalByAccountQueryHandler : IRequestHandler<GetCurrentMonthTotalByAccountQuery, decimal>
+{
+    private readonly IChequeRepository _chequeRepository;
+    public GetCurrentMonthTotalByAccountQueryHandler(IChequeRepository chequeRepository) => _chequeRepository = chequeRepository;
 
-//        var totalCount = vendors.Count();
-//        var totalPages = (int)Math.Ceiling((double)totalCount / request.SearchCriteria.PageSize);
+    public async Task<decimal> Handle(GetCurrentMonthTotalByAccountQuery request, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"BankAccountId: {request.BankAccountId}");
+        Console.WriteLine($"StartDate: {request.StartDate}");
+        Console.WriteLine($"EndDate: {request.EndDate}");
 
-//        var pagedVendors = vendors
-//            .Skip((request.SearchCriteria.PageNumber - 1) * request.SearchCriteria.PageSize)
-//            .Take(request.SearchCriteria.PageSize)
-//            .Select(VendorMapper.ToListDto);
+        var result = await _chequeRepository.GetCurrentMonthTotalByAccountAsync(
+            request.BankAccountId, request.StartDate, request.EndDate, cancellationToken);
 
-//        return new PaginatedVendorResponse
-//        {
-//            Vendors = pagedVendors,
-//            TotalCount = totalCount,
-//            PageNumber = request.SearchCriteria.PageNumber,
-//            PageSize = request.SearchCriteria.PageSize,
-//            TotalPages = totalPages,
-//            HasPreviousPage = request.SearchCriteria.PageNumber > 1,
-//            HasNextPage = request.SearchCriteria.PageNumber < totalPages
-//        };
-//    }
-//}
+        Console.WriteLine($"Result: {result}");
+
+        return result;
+    }
+}

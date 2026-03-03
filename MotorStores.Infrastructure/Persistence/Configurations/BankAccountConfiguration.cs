@@ -39,8 +39,9 @@ namespace MotorStores.Infrastructure.Persistence.Configurations
                 .HasForeignKey(x => x.BankId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Unique constraint on account number
-            b.HasIndex(x => x.AccountNo).IsUnique();
+         
+            b.HasIndex(x => new { x.UserId, x.AccountNo, x.BankId })
+                .IsUnique();
         }
     }
 }

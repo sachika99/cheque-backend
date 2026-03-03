@@ -29,7 +29,8 @@ namespace MotorStores.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             // Unique constraint on branch code
-            b.HasIndex(x => x.BranchCode).IsUnique();
+            b.HasIndex(x => new { x.BranchCode, x.UserId })
+                .IsUnique();
         }
     }
 }

@@ -1,142 +1,136 @@
+// Controllers/BanksController.cs
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MotorStores.Application.DTOs;
-using MotorStores.Application.Interfaces;
+using MotorStores.Application.Features.Banks.Commands;
+using MotorStores.Application.Features.Banks.Queries;
 
-namespace MotorStores.Api.Controllers
+namespace MotorStores.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
+[Authorize]
+public class BanksController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Produces("application/json")]
-    public class BanksController : ControllerBase
+    private readonly IMediator _mediator;
+
+    public BanksController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<BankDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<BankDto>>> GetAllBanks()
     {
-        private readonly IBankService _bankService;
-        private readonly IBankAccountService _bankAccountService;
-
-        public BanksController(IBankService bankService, IBankAccountService bankAccountService)
+        try
         {
-            _bankService = bankService;
-            _bankAccountService = bankAccountService;
-        }
-
-        // Get all banks
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<BankDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<BankDto>>> GetAllBanks()
-        {
-            var banks = await _bankService.GetAllAsync();
+            var banks = await _mediator.Send(new GetAllBanksQuery());
             return Ok(banks);
         }
-
-        // Get bank by ID
-        [HttpGet("{id}")]
-        [ProducesResponseType(typeof(BankDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<BankDto>> GetBankById(int id)
+        catch (Exception ex)
         {
-            var bank = await _bankService.GetByIdAsync(id);
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
 
-            if (bank == null)
-                return NotFound($"Bank with ID {id} not found.");
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(BankDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BankDto>> GetBankById(int id)
+    {
+        try
+        {
+            var bank = await _mediator.Send(new GetBankByIdQuery { Id = id });
+            return bank == null ? NotFound(new { message = $"Bank with ID {id} not found." }) : Ok(bank);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
 
+    [HttpPost("account")]
+    [ProducesResponseType(typeof(BankDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<BankDto>> CreateBankWithAccounts([FromBody] BankWithAccountsDto dto)
+    {
+        try
+        {
+            var bank = await _mediator.Send(new CreateBankWithAccountsCommand { BankWithAccounts = dto });
+            return CreatedAtAction(nameof(GetBankById), new { id = bank.Id }, bank);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [ProducesResponseType(typeof(BankDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<BankDto>> CreateBank([FromBody] BankDto dto)
+    {
+        try
+        {
+            var bank = await _mediator.Send(new CreateBankCommand { Bank = dto });
+            return CreatedAtAction(nameof(GetBankById), new { id = bank.Id }, bank);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(BankDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BankDto>> UpdateBank(int id, [FromBody] BankDto dto)
+    {
+        if (id != dto.Id)
+            return BadRequest(new { message = "ID mismatch between URL and request body." });
+
+        try
+        {
+            var bank = await _mediator.Send(new UpdateBankCommand { Bank = dto });
             return Ok(bank);
         }
-
-        [HttpPost("account")]
-        [ProducesResponseType(typeof(BankWithAccountsDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<BankDto>> CreateBank([FromBody] BankWithAccountsDto dto)
+        catch (InvalidOperationException ex)
         {
-            try
-            {
-                var bankDto = new BankDto
-                {
-                    BankName = dto.BankName,
-                    BranchName = dto.BranchName,
-                    BranchCode = dto.BranchCode,
-                    Status = dto.Status
-                };
-
-                var savedBank = await _bankService.CreateAsync(bankDto);
-
-                
-                foreach (var acc in dto.BankAccounts)
-                {
-                    acc.BankId = savedBank.Id;
-                    acc.BankName = savedBank.BankName;
-
-                    await _bankAccountService.CreateAsync(acc);
-                }
-
-               
-
-                return CreatedAtAction(nameof(GetBankById), new { id = savedBank.Id }, savedBank);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest(new { message = ex.Message });
         }
-
-
-
-        [HttpPost]
-        [ProducesResponseType(typeof(BankDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<BankDto>> CreateBankNAccount([FromBody] BankDto dto)
+        catch (Exception ex)
         {
-            try
-            {
-                var bank = await _bankService.CreateAsync(dto);
-
-                return CreatedAtAction(nameof(GetBankById), new { id = bank.Id }, bank);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return StatusCode(500, new { message = ex.Message });
         }
+    }
 
-        // Update an existing bank
-        [HttpPut("{id}")]
-        [ProducesResponseType(typeof(BankDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<BankDto>> UpdateBank(int id, [FromBody] BankDto dto)
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DeleteBank(int id)
+    {
+        try
         {
-            if (id != dto.Id)
-                return BadRequest("ID mismatch between URL and request body.");
-
-            try
-            {
-                var bank = await _bankService.UpdateAsync(dto);
-                return Ok(bank);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _mediator.Send(new DeleteBankCommand { Id = id });
+            return result ? NoContent() : NotFound(new { message = $"Bank with ID {id} not found." });
         }
-
-        // Delete a bank
-        [HttpDelete("{id}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> DeleteBank(int id)
+        catch (InvalidOperationException ex)
         {
-            try
-            {
-                var result = await _bankService.DeleteAsync(id);
-
-                if (!result)
-                    return NotFound($"Bank with ID {id} not found.");
-
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
         }
     }
 }

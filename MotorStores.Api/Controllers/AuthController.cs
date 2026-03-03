@@ -1,11 +1,18 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MotorStores.Application.DTOs;
+using MotorStores.Application.Features.Cheques.Queries;
+using MotorStores.Application.Features.UserIds.Commands;
+using MotorStores.Application.Features.UserIds.Queries;
 using MotorStores.Infrastructure.Entities;
 using MotorStores.Infrastructure.Helpers;
 using MotorStores.Infrastructure.Persistence;
 using MotorStores.Infrastructure.Services;
 using System.Runtime.Intrinsics.X86;
+using System.Security.Claims;
 using static System.Net.WebRequestMethods;
 
 [ApiController]
@@ -18,52 +25,105 @@ public class AuthController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _cfg;
     private readonly EmailService _email;
+    private readonly IMediator _mediator;
 
-    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, TokenService tokens, ApplicationDbContext db, IConfiguration cfg, EmailService email)
+    public AuthController(
+        UserManager<AppUser> users,
+        SignInManager<AppUser> signIn,
+        TokenService tokens,
+        ApplicationDbContext db,
+        IConfiguration cfg,
+        EmailService email,
+        IMediator mediator)
     {
-        _users = users; _signIn = signIn; _tokens = tokens; _db = db; _cfg = cfg;
+        _users = users;
+        _signIn = signIn;
+        _tokens = tokens;
+        _db = db;
+        _cfg = cfg;
         _email = email;
+        _mediator = mediator;
     }
 
-    public record RegisterDto(string Username, string Email, string Password);
+    public record RegisterDto(string Username, string Email, string Password, string Role, int? CreatedBy);
     public record LoginDto(string Username, string Password);
 
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
-        var userName = await _users.Users.FirstOrDefaultAsync(u => u.UserName == dto.Username);
-        if (userName != null) return Unauthorized("Username has been used");
-        
-        var Email = await _users.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-        if (Email != null) return Unauthorized("Email has been used");
+        var existingUserName = await _users.Users
+            .FirstOrDefaultAsync(u => u.UserName == dto.Username);
+        if (existingUserName != null)
+            return Unauthorized("Username has been used");
 
-        var user = new AppUser { UserName = dto.Username, Email = dto.Email };
+        var existingEmail = await _users.Users
+            .FirstOrDefaultAsync(u => u.Email == dto.Email);
+        if (existingEmail != null)
+            return Unauthorized("Email has been used");
+
+        var user = new AppUser
+        {
+            UserName = dto.Username,
+            Email = dto.Email
+        };
         var result = await _users.CreateAsync(user, dto.Password);
-        if (!result.Succeeded) return BadRequest(result.Errors);
-        return Ok(new { message = "User created successfully" });
 
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        var newUser = await _users.Users
+            .FirstOrDefaultAsync(u => u.UserName == dto.Username);
+
+        if (newUser == null)
+            return BadRequest("User not found.");
+
+        string? resolvedCreatedBy = null;
+        if (dto.CreatedBy.HasValue && dto.CreatedBy.Value != 0)
+        {
+            var creatorUser = await _mediator.Send(new GetUserByIdQuery { Id = dto.CreatedBy.Value });
+            resolvedCreatedBy = creatorUser?.UserId;
+        }
+
+        var userIdDto = await _mediator.Send(new CreateUserIdCommand
+        {
+            UserId = newUser.Id,
+            Role = dto.Role,
+            CreatedBy = resolvedCreatedBy ?? null
+        });
+
+        return Ok(new { message = "User created successfully" });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
-        var user = await _users.Users.FirstOrDefaultAsync(u => u.UserName == dto.Username || u.Email == dto.Username);
+
+        var user = await _users.Users
+            .FirstOrDefaultAsync(u => u.UserName == dto.Username || u.Email == dto.Username);
         if (user == null) return Unauthorized("Invalid Username");
+
 
         var check = await _signIn.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
         if (!check.Succeeded) return Unauthorized("Invalid Password");
 
-        var access = await _tokens.CreateAccessTokenAsync(user);
 
-       
-        return Ok(new { 
+        var cheque = await _mediator.Send(new GetIdByUserQuery { UserId = user.Id });
+
+
+        var access = await _tokens.CreateAccessTokenAsync(user, cheque);
+
+        return Ok(new
+        {
             accessToken = access,
             email = user.Email,
             username = user.UserName,
+            id = cheque?.Id,
+            role = cheque?.Role
         });
     }
-    
-    [HttpPost("forgot-password")]
+
+
+[HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromQuery] string email)
         
     {
@@ -142,6 +202,43 @@ public class AuthController : ControllerBase
         else return BadRequest("Please try again.");
     }
     public record ResetPasswordDto(string Email, string Token, string NewPassword);
+
+    // ── UPDATE USER ───────────────────────────────────────────────────────────────
+    [HttpPut("users/{id:int}")]
+    [Authorize]
+    [ProducesResponseType(typeof(UpdateUserIdDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserIdCommand command)
+    {
+      
+
+        try
+        {
+            command.Id = id;
+
+            var existingUserIdDto = await _mediator.Send(new GetUserByIdQuery { Id = id });
+            if (existingUserIdDto == null)
+                return NotFound($"User with ID {id} not found.");
+
+            var identityUser = await _users.FindByIdAsync(existingUserIdDto.UserId);
+            if (identityUser == null)
+                return NotFound($"Identity user not found.");
+            var updated = await _mediator.Send(command);
+
+            return Ok(new
+            {
+                id = id,
+                username = identityUser.UserName,
+                email = identityUser.Email,
+                role = updated.Role,
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
@@ -226,34 +323,78 @@ public class AuthController : ControllerBase
             });
         }
     }
-    //[HttpPost("refresh")]
-    //public async Task<IActionResult> Refresh()
-    //{
-    //    var token = Request.Cookies["refreshToken"];
-    //    if (string.IsNullOrEmpty(token)) return Unauthorized();
+    [HttpGet("users/my-users")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMyUsers()
+    {
+        // ✅ Get the logged-in user's Identity ID from token
+        var loggedInUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(loggedInUserId))
+            return Unauthorized("User not logged in.");
 
-    //    var rt = await _db.RefreshTokens.Include(r => r.User)
-    //        .SingleOrDefaultAsync(r => r.Token == token);
-    //    if (rt == null || !rt.IsActive) return Unauthorized();
+        // ✅ Get ALL UserIdDtos
+        var allUserIds = await _mediator.Send(new GetAllUserIdsQuery());
 
-    //    rt.Revoked = DateTime.UtcNow;
-    //    rt.RevokedByIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        // ✅ Filter only users whose CreatedBy == logged-in user's Identity Id
+        var myUsers = allUserIds
+            .Where(u => u.CreatedBy == loggedInUserId)
+            .ToList();
 
-    //    var newRt = _tokens.CreateRefreshToken(rt.RevokedByIp!);
-    //    newRt.UserId = rt.UserId;
-    //    rt.ReplacedByToken = newRt.Token;
+        // ✅ Enrich with Identity user info
+        var result = new List<object>();
+        foreach (var userIdDto in myUsers)
+        {
+            var identityUser = await _users.FindByIdAsync(userIdDto.UserId);
+            if (identityUser == null) continue;
 
-    //    _db.RefreshTokens.Add(newRt);
-    //    await _db.SaveChangesAsync();
+            result.Add(new
+            {
+                id = userIdDto.Id,
+                userId = userIdDto.UserId,
+                username = identityUser.UserName,
+                email = identityUser.Email,
+                role = userIdDto.Role,
+                createdBy = userIdDto.CreatedBy,
+            });
+        }
 
-    //    var crossSite = _cfg["Jwt:Audience"] is string aud && !aud.Contains("localhost");
-    //    await _tokens.SetRefreshCookieAsync(Response, newRt, crossSite);
+        return Ok(result);
+    }
 
-    //    var newAccess = await _tokens.CreateAccessTokenAsync(rt.User);
-    //    return Ok(new { accessToken = newAccess });
-    //}
+    // ── DELETE USER ───────────────────────────────────────────────────────────
+    [HttpDelete("users/{id:int}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DeleteUser(int id)
+    {
+        // ✅ Get the UserIdDto by int Id to find the Identity UserId string
+        var userIdDto = await _mediator.Send(new GetUserByIdQuery { Id = id });
+        if (userIdDto == null)
+            return NotFound($"User with ID {id} not found.");
 
-    [HttpPost("logout")]
+        // ✅ Find the Identity user
+        var identityUser = await _users.FindByIdAsync(userIdDto.UserId);
+        if (identityUser == null)
+            return NotFound($"Identity user not found.");
+
+        // ✅ Delete from UserIds table via MediatR
+        var deleted = await _mediator.Send(new DeleteUserIdCommand { Id = id });
+        if (!deleted)
+            return BadRequest("Failed to delete user record.");
+
+        // ✅ Delete from Identity
+        var result = await _users.DeleteAsync(identityUser);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return NoContent();
+    }
+
+[HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
         var token = Request.Cookies["refreshToken"];

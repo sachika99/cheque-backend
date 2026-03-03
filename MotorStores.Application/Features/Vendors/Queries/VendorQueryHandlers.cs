@@ -22,21 +22,23 @@ public class GetVendorByIdQueryHandler : IRequestHandler<GetVendorByIdQuery, Ven
     }
 }
 
-public class GetVendorByCodeQueryHandler : IRequestHandler<GetVendorByCodeQuery, VendorDto?>
-{
-    private readonly IVendorRepository _vendorRepository;
+//public class GetVendorByCodeQueryHandler : IRequestHandler<GetVendorByCodeQuery, VendorDto?>
+//{
+//    private readonly IVendorRepository _vendorRepository;
 
-    public GetVendorByCodeQueryHandler(IVendorRepository vendorRepository)
-    {
-        _vendorRepository = vendorRepository;
-    }
+//    public GetVendorByCodeQueryHandler(IVendorRepository vendorRepository)
+//    {
+//        _vendorRepository = vendorRepository;
+//    }
 
-    public async Task<VendorDto?> Handle(GetVendorByCodeQuery request, CancellationToken cancellationToken)
-    {
-        var vendor = await _vendorRepository.GetByVendorCodeAsync(request.VendorCode, cancellationToken);
-        return vendor != null ? VendorMapper.ToDto(vendor) : null;
-    }
-}
+//    public async Task<VendorDto?> Handle(GetVendorByCodeQuery request, CancellationToken cancellationToken)
+//    {
+//        //var vendor = await _vendorRepository.GetByVendorCodeAsync(request.VendorCode, cancellationToken);
+//        var vendor = await _vendorRepository.GetByVendorCodeAsync(request.VendorCode, cancellationToken);
+
+//        return vendor != null ? VendorMapper.ToDto(vendor) : null;
+//    }
+//}
 
 public class GetAllVendorsQueryHandler : IRequestHandler<GetAllVendorsQuery, IEnumerable<VendorListDto>>
 {

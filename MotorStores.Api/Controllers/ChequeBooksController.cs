@@ -1,158 +1,151 @@
+// Controllers/ChequeBooksController.cs
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MotorStores.Application.DTOs;
-using MotorStores.Application.Interfaces;
+using MotorStores.Application.Features.ChequeBooks.Commands;
+using MotorStores.Application.Features.ChequeBooks.Queries;
 
-namespace MotorStores.Api.Controllers
+namespace MotorStores.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
+[Authorize]
+public class ChequeBooksController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Produces("application/json")]
-    public class ChequeBooksController : ControllerBase
+    private readonly IMediator _mediator;
+
+    public ChequeBooksController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ChequeBookDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ChequeBookDto>>> GetAllChequeBooks()
     {
-        private readonly IChequeBookService _chequeBookService;
-
-        public ChequeBooksController(IChequeBookService chequeBookService)
+        try
         {
-            _chequeBookService = chequeBookService;
+            return Ok(await _mediator.Send(new GetAllChequeBooksQuery()));
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Get all cheque books
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<ChequeBookDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<ChequeBookDto>>> GetAllChequeBooks()
+    [HttpGet("account/{bankAccountId}")]
+    [ProducesResponseType(typeof(IEnumerable<ChequeBookDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ChequeBookDto>>> GetChequeBooksByAccount(int bankAccountId)
+    {
+        try
         {
-            var chequeBooks = await _chequeBookService.GetAllAsync();
-            return Ok(chequeBooks);
+            return Ok(await _mediator.Send(new GetChequeBooksByAccountQuery { BankAccountId = bankAccountId }));
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Get all cheque books for a specific bank account
-        [HttpGet("account/{bankAccountId}")]
-        [ProducesResponseType(typeof(IEnumerable<ChequeBookDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<ChequeBookDto>>> GetChequeBooksByAccount(int bankAccountId)
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ChequeBookDto>> GetChequeBookById(int id)
+    {
+        try
         {
-            var chequeBooks = await _chequeBookService.GetByBankAccountIdAsync(bankAccountId);
-            return Ok(chequeBooks);
+            var chequeBook = await _mediator.Send(new GetChequeBookByIdQuery { Id = id });
+            return chequeBook == null
+                ? NotFound(new { message = $"Cheque book with ID {id} not found." })
+                : Ok(chequeBook);
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Get cheque book by ID
-        [HttpGet("{id}")]
-        [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<ChequeBookDto>> GetChequeBookById(int id)
+    [HttpPost]
+    [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ChequeBookDto>> CreateChequeBook([FromBody] ChequeBookDto dto)
+    {
+        try
         {
-            var chequeBook = await _chequeBookService.GetByIdAsync(id);
+            var chequeBook = await _mediator.Send(new CreateChequeBookCommand { ChequeBook = dto });
+            return CreatedAtAction(nameof(GetChequeBookById), new { id = chequeBook.Id }, chequeBook);
+        }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-            if (chequeBook == null)
-                return NotFound($"Cheque book with ID {id} not found.");
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ChequeBookDto>> UpdateChequeBook(int id, [FromBody] ChequeBookDto dto)
+    {
+        if (id != dto.Id)
+            return BadRequest(new { message = "ID mismatch between URL and request body." });
 
+        try
+        {
+            var chequeBook = await _mediator.Send(new UpdateChequeBookCommand { ChequeBook = dto });
             return Ok(chequeBook);
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Create a new cheque book
-        [HttpPost]
-        [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ChequeBookDto>> CreateChequeBook([FromBody] ChequeBookDto dto)
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DeleteChequeBook(int id)
+    {
+        try
         {
-            try
-            {
-                var chequeBook = await _chequeBookService.CreateAsync(dto);
-                return CreatedAtAction(nameof(GetChequeBookById), new { id = chequeBook.Id }, chequeBook);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _mediator.Send(new DeleteChequeBookCommand { Id = id });
+            return result
+                ? NoContent()
+                : NotFound(new { message = $"Cheque book with ID {id} not found." });
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Update an existing cheque book
-        [HttpPut("{id}")]
-        [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<ChequeBookDto>> UpdateChequeBook(int id, [FromBody] ChequeBookDto dto)
+    [HttpPost("{id}/next-cheque")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<string>> GetNextChequeNumber(int id)
+    {
+        try
         {
-            if (id != dto.Id)
-                return BadRequest("ID mismatch between URL and request body.");
-
-            try
-            {
-                var chequeBook = await _chequeBookService.UpdateAsync(dto);
-                return Ok(chequeBook);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var chequeNumber = await _mediator.Send(new GetNextChequeNumberCommand { ChequeBookId = id });
+            return Ok(new { chequeNumber });
         }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+    }
 
-        // Delete a cheque book
-        [HttpDelete("{id}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> DeleteChequeBook(int id)
+    [HttpPatch("{id}/current-cheque")]
+    [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ChequeBookDto>> UpdateCurrentChequeNo(int id, [FromBody] string currentChequeNo)
+    {
+        try
         {
-            try
+            var result = await _mediator.Send(new UpdateCurrentChequeNoCommand
             {
-                var result = await _chequeBookService.DeleteAsync(id);
-
-                if (!result)
-                    return NotFound($"Cheque book with ID {id} not found.");
-
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+                ChequeBookId = id,
+                CurrentChequeNo = currentChequeNo
+            });
+            return Ok(result);
         }
-
-        // Get next available cheque number from a cheque book
-        [HttpPost("{id}/next-cheque")]
-        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<string>> GetNextChequeNumber(int id)
-        {
-            try
-            {
-                var chequeNumber = await _chequeBookService.GetNextChequeNumberAsync(id);
-                return Ok(new { chequeNumber });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [HttpPatch("{id}/current-cheque")]
-        [ProducesResponseType(typeof(ChequeBookDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<ChequeBookDto>> UpdateCurrentChequeNo(int id,[FromBody] int currentChequeNo)
-        {
-            try
-            {
-                var result = await _chequeBookService.UpdateCurrentChequeNoAsync(id, currentChequeNo);
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
     }
 }
